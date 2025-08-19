@@ -1,0 +1,44 @@
+# User Configuration for Synthetic Data Generation
+# Copy this file and modify the paths to match your setup
+
+# REQUIRED: Update these paths to match your data location
+tools_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/surgical_tools_models"
+annotations_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/surgical_tools_annotations"
+camera_params: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/camera.json"
+output_dir: "D:/Vision_project_data/datasets/dataset_test"
+
+# OPTIONAL: HDRI files for realistic lighting (leave empty if not available)
+hdri_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/haven/hdris"
+
+# Dataset generation parameters
+num_images: 1000                    # Start small for testing, increase for full dataset
+poses_per_workspace: 5
+workspace_size: 3.5
+
+# Rendering settings
+render_width: 960                # Adjust based on your GPU memory
+render_height: 540
+render_samples: 100               # Higher = better quality, slower rendering
+
+# Effects and augmentation
+motion_blur_prob: 0.3
+occlusion_prob: 0.3
+
+# Output options
+visualize_keypoints: true         # Generate visualization images for debugging
+enable_statistics: true           # Enable comprehensive dataset statistics tracking
+debug: false
+seed: 42                          # For reproducible results
+
+# Advanced settings (usually don't need to change)
+tool_scale_range: [0.2, 0.35]
+tool_rotation_range: [-0.4, 0.4]
+min_tool_distance: 0.2
+
+camera_height_range: [2.0, 3.5]
+camera_offset_range: [-0.8, 0.8]
+
+# Lighting parameters (adjust for different surgical environments)
+main_light_energy_range: [1200, 1800]
+fill_light_energy_range: [500, 900]
+ambient_light_range: [0.2, 0.5]

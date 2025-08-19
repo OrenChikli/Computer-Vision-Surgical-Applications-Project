@@ -1,0 +1,25 @@
+{
+  "needle_holder": {
+    "keypoints": ["base_left_forcep", "base_right_forcep", "joint", "tip_left_forcep", "tip_right_forcep"],
+    "skeleton": [
+      ["base_left_forcep", "joint"],
+      ["base_right_forcep", "joint"], 
+      ["joint", "tip_left_forcep"],
+      ["joint", "tip_right_forcep"]
+    ],
+    "flip_pairs": [
+      ["base_left_forcep", "base_right_forcep"],
+      ["tip_left_forcep", "tip_right_forcep"]
+    ]
+  },
+  "tweezers": {
+    "keypoints": ["base","left_tip","right_tip"],
+    "skeleton": [
+      ["base", "left_tip"],
+      ["base", "right_tip"]
+    ],
+    "flip_pairs": [
+      ["left_tip", "right_tip"]
+    ]
+  }
+}

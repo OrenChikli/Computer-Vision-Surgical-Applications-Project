@@ -1,0 +1,171 @@
+# Example Configuration Files
+# Place these in config/examples/ directory
+
+# ============================================================================
+# config/examples/quick_test.yaml
+# For quick testing with minimal images
+# ============================================================================
+# Basic paths - UPDATE THESE
+tools_path: "/path/to/your/surgical_tools_models"
+annotations_path: "/path/to/your/surgical_tools_annotations"
+camera_params: "/path/to/your/camera.json"
+output_dir: "output/quick_test"
+hdri_path: ""  # Optional
+
+# Minimal dataset for testing
+num_images: 5
+poses_per_workspace: 2
+workspace_size: 2.0
+
+# Fast rendering settings
+render_width: 480
+render_height: 320
+render_samples: 50
+
+# No special effects for speed
+motion_blur_prob: 0.0
+occlusion_prob: 0.0
+visualize_keypoints: true
+debug: false
+seed: 42
+
+# ============================================================================
+# config/examples/high_quality.yaml  
+# For high-quality dataset generation
+# ============================================================================
+# Basic paths - UPDATE THESE
+tools_path: "/path/to/your/surgical_tools_models"
+annotations_path: "/path/to/your/surgical_tools_annotations"
+camera_params: "/path/to/your/camera.json"
+output_dir: "output/high_quality_dataset"
+hdri_path: "/path/to/hdri/files"
+
+# Large dataset
+num_images: 5000
+poses_per_workspace: 10
+workspace_size: 4.0
+
+# High quality rendering
+render_width: 1920
+render_height: 1080
+render_samples: 200
+
+# Rich augmentation
+motion_blur_prob: 0.4
+occlusion_prob: 0.5
+visualize_keypoints: false  # Skip for large datasets
+debug: false
+seed: 42
+
+# Enhanced lighting for realism
+main_light_energy_range: [1500, 2200]
+fill_light_energy_range: [700, 1200]
+ambient_light_range: [0.3, 0.7]
+
+# ============================================================================
+# config/examples/development.yaml
+# For development and debugging
+# ============================================================================
+# Basic paths - UPDATE THESE  
+tools_path: "/path/to/your/surgical_tools_models"
+annotations_path: "/path/to/your/surgical_tools_annotations"
+camera_params: "/path/to/your/camera.json"
+output_dir: "output/development"
+hdri_path: ""
+
+# Small dataset for iteration
+num_images: 20
+poses_per_workspace: 3
+workspace_size: 3.0
+
+# Balanced settings
+render_width: 960
+render_height: 540
+render_samples: 100
+
+# Some effects for testing
+motion_blur_prob: 0.3
+occlusion_prob: 0.3
+visualize_keypoints: true
+debug: true
+seed: 42
+
+# Development-friendly lighting
+main_light_energy_range: [1000, 1500]
+fill_light_energy_range: [400, 800]
+
+# ============================================================================
+# config/examples/paper_dataset.yaml
+# Configuration for generating publication-quality dataset
+# ============================================================================
+# Basic paths - UPDATE THESE
+tools_path: "/path/to/your/surgical_tools_models"
+annotations_path: "/path/to/your/surgical_tools_annotations"  
+camera_params: "/path/to/your/camera.json"
+output_dir: "output/paper_dataset"
+hdri_path: "/path/to/hdri/files"
+
+# Publication dataset size
+num_images: 10000
+poses_per_workspace: 8
+workspace_size: 3.5
+
+# Standard resolution
+render_width: 1280
+render_height: 720
+render_samples: 150
+
+# Realistic augmentation
+motion_blur_prob: 0.35
+occlusion_prob: 0.4
+visualize_keypoints: false
+debug: false
+seed: 2024  # Reproducible for paper
+
+# Careful material and lighting settings
+main_light_energy_range: [1200, 1800]
+fill_light_energy_range: [500, 900]
+side_light_energy_range: [300, 600]
+ambient_light_range: [0.2, 0.5]
+
+# Surgical-realistic tool placement
+tool_scale_range: [0.25, 0.4]
+tool_rotation_range: [-0.3, 0.3]
+min_tool_distance: 0.25
+
+# ============================================================================
+# config/examples/ablation_study.yaml
+# For ablation studies - minimal effects
+# ============================================================================
+# Basic paths - UPDATE THESE
+tools_path: "/path/to/your/surgical_tools_models"
+annotations_path: "/path/to/your/surgical_tools_annotations"
+camera_params: "/path/to/your/camera.json"
+output_dir: "output/ablation_baseline"
+hdri_path: ""
+
+# Controlled dataset
+num_images: 1000  
+poses_per_workspace: 5
+workspace_size: 3.5
+
+# Standard rendering
+render_width: 1280
+render_height: 720
+render_samples: 100
+
+# No augmentation for baseline
+motion_blur_prob: 0.0
+occlusion_prob: 0.0
+visualize_keypoints: true
+debug: false
+seed: 42
+
+# Controlled lighting - minimal variation
+main_light_energy_range: [1500, 1500]  # Fixed value
+fill_light_energy_range: [750, 750]    # Fixed value
+ambient_light_range: [0.3, 0.3]        # Fixed value
+
+# Controlled placement
+tool_scale_range: [0.3, 0.3]           # Fixed scale
+tool_rotation_range: [0.0, 0.0]        # No rotation
