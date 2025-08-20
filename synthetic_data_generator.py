@@ -15,7 +15,7 @@ if script_dir not in sys.path:
     sys.path.append(script_dir)
 
 from config.config_loader import load_config
-from core.tool_manager import ToolManager
+from utils.tool_manager import ToolManager
 from utils.camera_utils import setup_camera, sample_camera_pose
 from utils.lighting_utils import setup_lighting
 from utils.visualization import visualize_keypoints_on_images, get_hdri_files

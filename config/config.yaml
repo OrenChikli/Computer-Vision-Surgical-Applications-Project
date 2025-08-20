@@ -5,13 +5,13 @@
 tools_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/surgical_tools_models"
 annotations_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/surgical_tools_annotations"
 camera_params: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/camera.json"
-output_dir: "D:/Vision_project_data/datasets/dataset_test"
+output_dir: "D:/Vision_project_data/datasets/dataset_test_2"
 
 # OPTIONAL: HDRI files for realistic lighting (leave empty if not available)
 hdri_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/haven/hdris"
 
 # Dataset generation parameters
-num_images: 1000                    # Start small for testing, increase for full dataset
+num_images: 50                   # Start small for testing, increase for full dataset
 poses_per_workspace: 5
 workspace_size: 3.5
 

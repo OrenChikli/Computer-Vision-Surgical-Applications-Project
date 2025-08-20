@@ -15,10 +15,6 @@ This project implements a synthetic data generation pipeline for 2D pose estimat
 │   ├── config_examples.yaml              # Additional config examples
 │   ├── config_loader.py                  # YAML configuration loading
 │   └── default_config.yaml               # Default configuration values
-├── core/
-│   ├── __init__.py
-│   ├── keypoint_extractor.py             # Keypoint extraction logic
-│   └── tool_manager.py                   # Tool loading and management
 ├── domain_adaptation/
 │   ├── __init__.py
 │   ├── README.md                         # Domain adaptation guide
@@ -30,18 +26,19 @@ This project implements a synthetic data generation pipeline for 2D pose estimat
 │   ├── 000000.jpg - 000009.jpg           # 10 example synthetic images
 │   ├── results_refined.mp4               # Refined model results
 │   └── results_synthetic_only.mp4        # Synthetic-only model results
-├── scripts/
-│   ├── coco_to_yolo.py                   # COCO to YOLO converter
-│   ├── train_coco_yolo.py                # Training utilities
 ├── utils/
 │   ├── __init__.py
 │   ├── camera_utils.py                   # Camera positioning utilities
 │   ├── coco_utils.py                     # COCO format handling
+│   ├── coco_to_yolo.py                   # COCO to YOLO converter
 │   ├── lighting_utils.py                 # Lighting setup
 │   ├── material_utils.py                 # Material properties
 │   ├── statistics_tracker.py             # Dataset statistics
 │   ├── visualization.py                  # Keypoint visualization
+│   ├── keypoint_extractor.py             # Keypoint extraction logic
+│   ├──tool_manager.py                   # Tool loading and management
 │   └── workspace_utils.py                # Workspace generation
+│
 ├── directory_structure.md                # Project structure details
 ├── predict.py                            # Single image prediction (Phase 2)
 ├── requirements.txt                      # Python dependencies
@@ -178,7 +175,7 @@ The generator creates:
 
 **Phase 2 Implementation**: This phase uses ultralytics YOLO for training. You have two options for training:
 
-## **Option A: YOLO Format Training (Recommended)**
+## ** YOLO Format Training **
 
 #### Step 1: Convert COCO to YOLO Format
 
@@ -212,45 +209,16 @@ yolo pose train \
   fliplr=0.5
 ```
 
-## **Option B: Direct COCO Training (Alternative)**
 
-For users who prefer to work directly with COCO format:
+#### **Step 3: Run Predictions**
 
-#### Step 1: Setup Training Configuration
-
-```bash
-# Automatically create training setup from COCO dataset
-python scripts/train_coco_yolo.py path/to/coco_annotations.json training_output --skeleton-json annotation/tool_skeletons.json
-
-# This creates:
-# - Proper train/val/test splits
-# - Training configuration with optimal parameters
-# - Dataset.yaml with correct flip_idx
-# - Multiple training command options
-```
-
-#### Step 2: Train with Generated Configuration
-
-```bash
-# Option 1: Use the generated config file (recommended)
-yolo train cfg=training_output/training_config.yaml
-
-# Option 2: Use the dataset.yaml with splits
-yolo train model=yolo11n-pose.pt data=training_output/dataset.yaml epochs=100
-
-# Option 3: Direct COCO training (no splits)
-yolo train model=yolo11n-pose.pt data=path/to/coco_annotations.json epochs=100
-```
-
-## **Step 3: Run Predictions**
-
-##### Single Image Prediction
+###### Single Image Prediction
 
 ```bash
 python predict.py path/to/image.jpg --model path/to/best.pt --output predicted_image.jpg
 ```
 
-##### Video Processing
+###### Video Processing
 
 ```bash
 python video.py path/to/video.mp4 --model path/to/best.pt --output predicted_video.mp4
