@@ -109,7 +109,7 @@ data/
 
 ### 3. Configuration
 
-Copy and modify the configuration file:
+Modify the configuration file:
 
 ```bash
 # Copy the main configuration file (contains all phases)
@@ -121,7 +121,7 @@ The `config.yaml` file contains settings for all three phases:
 - Phase 2: Model Training parameters
 - Phase 3: Domain Adaptation
 
-Edit `my_config.yaml` to set your specific paths:
+Edit `config.yaml` to set your specific paths:
 
 ```yaml
 # Update these paths to match your data location
@@ -131,8 +131,6 @@ camera_params: "/path/to/your/camera.json"
 output_dir: "/path/to/output/dataset"
 hdri_path: "/path/to/hdri/files"  # Optional
 ```
-
-
 
 ## Usage
 
@@ -145,7 +143,7 @@ Generate synthetic surgical instrument images with keypoint annotations:
 blenderproc run synthetic_data_generator.py --config my_config.yaml
 ```
 
-**⚠️ Important**: You must use `blenderproc run` instead of `python` for the synthetic data generator since it uses BlenderProc.
+** Important**: You must use `blenderproc run` instead of `python` for the synthetic data generator since it uses BlenderProc.
 
 #### Configuration Options
 
@@ -171,9 +169,9 @@ The generator creates:
 
 **Phase 2 Implementation**: This phase uses ultralytics YOLO for training. You have two options for training:
 
-## ** YOLO Format Training **
+####  Ultralytics YOLO Training 
 
-#### Step 1: Convert COCO to YOLO Format
+###### Step 1: Convert COCO to YOLO Format
 
 Convert your synthetic dataset to YOLO format:
 
@@ -185,7 +183,7 @@ python utils/coco_to_yolo.py path/to/your/dataset path/to/yolo_output
 python utils/coco_to_yolo.py path/to/your/dataset path/to/yolo_output --split-ratio 0.8 --test-ratio 0.1
 ```
 
-#### Step 2: Train YOLO Model
+###### Step 2: Train YOLO Model
 
 Train the pose estimation model using YOLO CLI:
 
@@ -206,9 +204,9 @@ yolo pose train \
 ```
 
 
-#### **Step 3: Run Predictions**
+###### **Step 3: Run Predictions**
 
-###### Single Image Prediction
+##### Single Image Prediction
 
 ```bash
 python predict.py  --model path/to/best.pt --image_path path/to/image.jpg 
@@ -224,7 +222,7 @@ python video.py path/to/video.mp4 --model path/to/best.pt --output predicted_vid
 
 **Phase 3 Implementation**: Uses iterative refinement and pseudo-labeling to adapt your synthetic-trained model to real surgical data through unsupervised domain adaptation.
 
-#### What Domain Adaptation Does
+#### Summary
 
 - **Extracts pseudo-labels** from real surgical video using your Phase 2 model
 - **Combines synthetic + pseudo-labeled real data** for improved training
@@ -242,7 +240,7 @@ cp domain_adaptation/config.yaml domain_adaptation/my_config.yaml
 nano domain_adaptation/config.yaml
 ```
 
-**Key Configuration Settings:**
+**Key Settings:**
 ```yaml
 paths:
   model_path: "path/to/your/phase2_model/weights/best.pt"        # Phase 2 trained model
@@ -313,31 +311,6 @@ output/domain_adaptation_results/
     └── comparison_report.json             # Detailed comparison with videos
 ```
 
-#### Advanced Usage
-
-**Custom Iteration Parameters:**
-```yaml
-refinement:
-  iterations: 5                    # More iterations for better adaptation
-  save_intermediate_models: true   # Save model after each iteration
-  accumulate_data: false          # Don't accumulate (use only current iteration data)
-
-training:
-  epochs: 15                      # More training epochs per iteration
-  batch_size: 8                   # Adjust for GPU memory
-  device: "cuda:0"                # Specific GPU selection
-```
-
-**Memory Optimization:**
-```yaml
-memory_management:
-  chunk_size: 25                  # Process fewer frames at once
-  force_cpu_inference: true       # Use CPU if GPU memory limited
-  max_frames_in_memory: 100       # Reduce memory usage
-
-video_annotation:
-  enabled: false                  # Disable video creation to save time
-```
 
 **Evaluation Options:**
 ```bash
@@ -348,272 +321,3 @@ python domain_adaptation/evaluate_refinement.py config.yaml --evaluate-all-itera
 python domain_adaptation/evaluate_refinement.py config.yaml --sample-rate 10
 ```
 
-#### Expected Results
-
-**Successful Domain Adaptation Shows:**
--  **Increased confidence scores** on real surgical data
--  **More consistent detections** across video frames  
--  **Better keypoint localization** on real instruments
--  **Reduced domain gap** between synthetic and real data
-
-**Monitoring Progress:**
-```bash
-# Watch training logs
-tail -f output/domain_adaptation_results/iteration_*/refined_model/train/weights/last.pt
-
-# Check iteration summaries
-cat output/domain_adaptation_results/iteration_*/iteration_summary.json
-
-# View overall results
-cat output/domain_adaptation_results/overall_refinement_summary.json
-```
-
-#### Troubleshooting
-
-**Common Issues:**
-
-1. **Import Errors**: Run from project root directory
-2. **Path Issues**: Use absolute paths or check config.yaml paths
-3. **GPU Memory**: Reduce batch_size or enable CPU inference
-4. **No Pseudo-Labels**: Lower confidence_threshold or check video quality
-5. **Training Failures**: Verify dataset format and paths
-
-**Performance Tips:**
-- Start with 1-2 iterations to test the pipeline
-- Use confidence_threshold 0.7-0.9 for good pseudo-labels
-- Enable video annotation to visualize improvements
-- Monitor GPU usage during training iterations
-
-## Dataset Output Format
-
-The generated dataset follows COCO format with keypoint annotations:
-
-```json
-{
-  "images": [...],
-  "annotations": [
-    {
-      "id": 1,
-      "image_id": 1,
-      "category_id": 1,
-      "keypoints": [x1, y1, v1, x2, y2, v2, ...],
-      "num_keypoints": 5,
-      "area": 1234,
-      "bbox": [x, y, width, height]
-    }
-  ],
-  "categories": [
-    {
-      "id": 1,
-      "name": "needle_holder",
-      "keypoints": ["tip", "joint", "handle", ...],
-      "skeleton": [[1, 2], [2, 3], ...]
-    }
-  ]
-}
-```
-
-Where keypoint visibility values are:
-- `0`: Not available
-- `1`: Not visible (occluded)
-- `2`: Visible
-
-## Converting to YOLO Format
-
-After generating your COCO dataset, you can convert it to YOLO format for training with ultralytics YOLO:
-
-### Installation
-
-The YOLO conversion dependencies are included in the main requirements.txt file. No additional installation needed.
-
-### Conversion
-
-Convert your COCO dataset to YOLO format:
-
-```bash
-# Basic conversion (automatically finds COCO JSON and images)
-python scripts/coco_to_yolo.py path/to/dataset path/to/yolo_output
-
-# Custom train/validation split ratio (default: 0.8)
-python scripts/coco_to_yolo.py path/to/dataset path/to/yolo_output --split-ratio 0.7
-
-# Custom test split ratio (default: 0.1)
-python scripts/coco_to_yolo.py path/to/dataset path/to/yolo_output --test-ratio 0.15
-
-# Custom split ratios (train: 70%, test: 15%, val: 15%)
-python scripts/coco_to_yolo.py path/to/dataset path/to/yolo_output --split-ratio 0.7 --test-ratio 0.15
-
-# With skeleton configuration for flip_idx augmentation
-python scripts/coco_to_yolo.py path/to/dataset path/to/yolo_output --skeleton-json path/to/tool_skeletons.json
-```
-
-### What Gets Created
-
-The converter creates a complete YOLO dataset structure:
-
-```
-yolo_output/
-├── images/
-│   ├── train/          # Training images
-│   ├── val/            # Validation images
-│   └── test/           # Test images
-├── labels/
-│   ├── train/          # Training labels (.txt files)
-│   ├── val/            # Validation labels (.txt files)
-│   └── test/           # Test labels (.txt files)
-└── dataset.yaml         # YOLO configuration file
-```
-
-### Training with YOLO
-
-After conversion, train your model using the YOLO CLI (recommended for pose estimation):
-
-```bash
-# Train pose estimation model
-yolo pose train \
-  data="path/to/yolo_output/dataset.yaml" \
-  model=yolo11n-pose.pt \
-  epochs=100 \
-  imgsz=1280 \
-  batch=16 \
-  project="path/to/results" \
-  save_period=5 \
-  visualize=True \
-  flipud=0.5 \
-  fliplr=0.5
-
-# For smaller models, use yolo11n-pose.pt
-# For better accuracy, try yolo11s-pose.pt or yolo11m-pose.pt
-```
-
-**Alternative Python API:**
-
-```python
-from ultralytics import YOLO
-
-# Load a pre-trained pose model
-model = YOLO('yolo11n-pose.pt')
-
-# Train on your converted dataset
-model.train(
-    data='path/to/yolo_output/dataset.yaml',
-    epochs=100,
-    imgsz=1280,
-    batch=16,
-    flipud=0.5,
-    fliplr=0.5
-)
-```
-
-### Key Features
-
-- ✅ **Bounding Box Conversion**: COCO [x, y, w, h] → YOLO [x_center, y_center, w, h] (normalized)
-- ✅ **Keypoint Support**: Preserves surgical tool keypoint annotations with unified schema
-- ✅ **Flip Index Generation**: Creates flip_idx for proper keypoint augmentation during training
-- ✅ **Skeleton Configuration**: Supports tool_skeletons.json for advanced keypoint mapping
-- ✅ **Automatic Splitting**: Creates train/validation/test splits
-- ✅ **YOLO Compatibility**: Generates dataset.yaml ready for training
-- ✅ **Flexible Paths**: Handles images in different directories
-
-## Model Weights
-
-*Model weights will be available after Phase 2 completion.*
-
-Download links will be provided here for:
-- **Synthetic-only model**: Trained only on synthetic data
-- **Refined model**: Fine-tuned with domain adaptation
-
-## Advanced Usage
-
-### Dataset Validation
-
-Validate your generated datasets:
-
-```bash
-# Validate dataset integrity and generate statistics
-python scripts/validate_dataset.py /path/to/your/dataset --visualizations
-
-# This will check:
-# - File integrity
-# - COCO format compliance  
-# - Keypoint annotation validity
-# - Generate summary statistics and plots
-```
-
-### COCO to YOLO Conversion
-
-Convert your COCO dataset to YOLO format for training:
-
-```bash
-# Convert to YOLO format
-python scripts/coco_to_yolo.py path/to/coco_annotations.json path/to/yolo_output
-```
-
-### Setup Verification
-
-```bash
-# Verify your setup and check dependencies
-python setup.py
-```
-
-### Configuration File
-
-The project uses a single consolidated configuration file:
-
-- `config.yaml`: Complete configuration for all three phases with documentation and default values
-
-```bash
-# Use the main configuration file
-blenderproc run synthetic_data_generator.py --config config.yaml
-
-# Or use a custom configuration
-blenderproc run synthetic_data_generator.py --config my_config.yaml
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Python Version**: This project requires Python 3.10. Use `python setup_pip.py` for automated setup
-2. **BlenderProc Installation**: Make sure you're using Python 3.10 and the virtual environment
-3. **Missing Dependencies**: Install all requirements with `pip install -r requirements.txt`
-4. **Path Issues**: Use absolute paths in configuration files
-5. **Memory Issues**: Reduce `render_samples` or image resolution for lower memory usage
-6. **Virtual Environment**: Always activate the environment before running any scripts:
-   - Linux/Mac: `source .venv/bin/activate`
-   - Windows: `.venv\Scripts\activate`
-
-### Performance Optimization
-
-- Use SSD storage for faster I/O
-- Increase `render_samples` for higher quality (slower)
-- Adjust `poses_per_workspace` vs `num_images` for different workspace/pose ratios
-
-## Results and Evaluation
-
-After generation, you can:
-
-1. **Visualize keypoints**: Set `visualize_keypoints: true` in config
-2. **Analyze dataset statistics**: Check the generated COCO file
-3. **Validate annotations**: Use the visualization images to verify quality
-
-## Contributing
-
-This project is part of a computer vision course assignment. The implementation focuses on:
-
-- Phase 1: Synthetic data generation ✅
-- Phase 2: Model training and prediction ✅  
-- Phase 3: Domain adaptation ✅
-
-## Citation
-
-If you use this code in your research, please cite:
-
-```
-@misc{surgical-pose-estimation-2024,
-  title={Synthetic Data Generation for Surgical Instrument 2D Pose Estimation},
-  author={[Your Name]},
-  year={2024},
-  howpublished={\\url{https://github.com/[your-username]/[repo-name]}}
-}
-```
