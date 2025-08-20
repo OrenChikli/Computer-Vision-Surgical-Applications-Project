@@ -14,7 +14,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.append(script_dir)
 
-from config.config_loader import load_config
+from config import load_config
 from utils.tool_manager import ToolManager
 from utils.camera_utils import setup_camera, sample_camera_pose
 from utils.lighting_utils import setup_lighting

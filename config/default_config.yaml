@@ -1,5 +1,5 @@
-# Default Synthetic Data Generation Configuration
-# This file contains default values that can be overridden by user config files
+# User Configuration for Synthetic Data Generation
+# Copy this file and modify the paths to match your setup
 
 # Basic paths - MUST be overridden in user config
 tools_path: ""
@@ -23,11 +23,12 @@ motion_blur_prob: 0.3
 occlusion_prob: 0.3
 
 # Output options
-visualize_keypoints: false
+visualize_keypoints: true         # Generate visualization images for debugging
+enable_statistics: true           # Enable comprehensive dataset statistics tracking
 debug: false
-seed: 42
+seed: 42                          # For reproducible results
 
-# Tool placement parameters
+# Advanced settings (usually don't need to change)
 tool_scale_range: [0.2, 0.35]
 tool_rotation_range: [-0.4, 0.4]
 tool_z_variation: [-0.05, 0.05]
@@ -43,7 +44,7 @@ camera_min_distance_threshold: 0.1
 camera_max_angle_from_vertical: 60.0
 camera_fallback_height: 3.5
 
-# Lighting parameters
+# Lighting parameters (adjust for different surgical environments)
 main_light_energy_range: [1200, 1800]
 fill_light_energy_range: [500, 900]
 side_light_energy_range: [300, 600]

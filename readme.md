@@ -272,16 +272,6 @@ python domain_adaptation/run_domain_adaptation.py --config domain_adaptation/con
 # Skip model retraining (only extract pseudo-labels for analysis)
 python domain_adaptation/run_domain_adaptation.py --config domain_adaptation/config.yaml --no-retrain
 ```
-
-**What Happens During Domain Adaptation:**
-1. 🎬 **Baseline Video Creation**: Annotates video with original model
-2. 🎯 **Pseudo-Label Extraction**: Finds high-confidence predictions in real video
-3. 📊 **Dataset Augmentation**: Combines synthetic + pseudo-labeled data
-4. 🚀 **Model Refinement**: Retrains model on augmented dataset
-5. 🎬 **Progress Videos**: Creates annotated video for each iteration
-6. 📈 **Results Tracking**: Saves comprehensive statistics and summaries
-7. 📊 **Automatic Evaluation**: Compares original vs refined model performance (if enabled)
-
 #### Step 3: Results and Evaluation
 
 **Automatic Evaluation (Recommended):**
@@ -365,10 +355,10 @@ python domain_adaptation/evaluate_refinement.py config.yaml --sample-rate 10
 #### Expected Results
 
 **Successful Domain Adaptation Shows:**
-- ✅ **Increased confidence scores** on real surgical data
-- ✅ **More consistent detections** across video frames  
-- ✅ **Better keypoint localization** on real instruments
-- ✅ **Reduced domain gap** between synthetic and real data
+-  **Increased confidence scores** on real surgical data
+-  **More consistent detections** across video frames  
+-  **Better keypoint localization** on real instruments
+-  **Reduced domain gap** between synthetic and real data
 
 **Monitoring Progress:**
 ```bash

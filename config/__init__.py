@@ -1,5 +1,11 @@
-"""Configuration loading utilities."""
+"""Configuration utilities."""
 
-from .config_loader import ConfigLoader, load_config
+# Simple YAML config loading
+import yaml
 
-__all__ = ['ConfigLoader', 'load_config']
+def load_config(config_path):
+    """Load YAML configuration file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+__all__ = ['load_config']
