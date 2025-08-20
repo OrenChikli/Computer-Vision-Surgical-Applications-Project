@@ -10,7 +10,7 @@ from domain_adaptation import DomainAdaptation
 
 def main():
     parser = argparse.ArgumentParser(description="Run Domain Adaptation for Surgical Tool Pose Estimation")
-    parser.add_argument("--config", default="config.yaml", help="Path to configuration YAML file")
+    parser.add_argument("--config", default="domain_adaptation/config.yaml", help="Path to configuration YAML file")
     parser.add_argument("--no-retrain", action="store_true", help="Skip retraining (only generate pseudo-labels)")
 
     args = parser.parse_args()
@@ -32,7 +32,7 @@ def main():
         # Run domain adaptation
         results = da.run_domain_adaptation(retrain=not args.no_retrain)
 
-        if results:
+        if len(results) > 3:
             print("\n🎉 Domain adaptation completed successfully!")
             print(f"📊 Total iterations: {results['total_iterations']}")
             print(f"📈 Total pseudo-labels generated: {results['total_pseudo_labels']}")

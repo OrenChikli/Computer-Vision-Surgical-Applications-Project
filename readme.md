@@ -183,10 +183,10 @@ Convert your synthetic dataset to YOLO format:
 
 ```bash
 # Basic conversion (flip_pairs automatically read from COCO categories)
-python scripts/coco_to_yolo.py path/to/your/dataset path/to/yolo_output
+python utils/coco_to_yolo.py path/to/your/dataset path/to/yolo_output
 
 # Custom train/val/test split ratios
-python scripts/coco_to_yolo.py path/to/your/dataset path/to/yolo_output --split-ratio 0.8 --test-ratio 0.1
+python utils/coco_to_yolo.py path/to/your/dataset path/to/yolo_output --split-ratio 0.8 --test-ratio 0.1
 ```
 
 #### Step 2: Train YOLO Model
@@ -215,7 +215,7 @@ yolo pose train \
 ###### Single Image Prediction
 
 ```bash
-python predict.py path/to/image.jpg --model path/to/best.pt --output predicted_image.jpg
+python predict.py  --model path/to/best.pt --image_path path/to/image.jpg 
 ```
 
 ###### Video Processing

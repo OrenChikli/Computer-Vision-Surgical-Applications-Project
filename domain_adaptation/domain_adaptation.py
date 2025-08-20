@@ -662,7 +662,7 @@ class DomainAdaptation:
                     self.logger.warning(f"Iteration {iteration} failed to generate pseudo-labels")
                     break
 
-                # ✅ NEW: Create annotated video for this iteration
+
                 if retrain and iteration_result.get('refined_model_path'):
                     refined_model_path = iteration_result['refined_model_path']
                     if Path(refined_model_path).exists():
@@ -955,7 +955,7 @@ class DomainAdaptation:
                 'output_model': result['refined_model_path']
             })
 
-            # ✅ NEW: Track video paths
+
             if result.get('annotated_video_path'):
                 video_path_progression.append({
                     'iteration': result['iteration'],
@@ -967,15 +967,15 @@ class DomainAdaptation:
             'pseudo_labels_progression': pseudo_labels_progression,
             'total_pseudo_labels': sum(pseudo_labels_progression),
             'model_path_progression': model_path_progression,
-            'video_path_progression': video_path_progression,  # ✅ NEW
+            'video_path_progression': video_path_progression,
             'best_iteration': {
                 'iteration_number': best_iteration['iteration'],
                 'pseudo_labels_count': best_iteration['pseudo_labels_count'],
                 'model_path': best_iteration['refined_model_path'],
-                'video_path': best_iteration.get('annotated_video_path')  # ✅ NEW
+                'video_path': best_iteration.get('annotated_video_path')
             },
             'final_model_path': iteration_results[-1]['refined_model_path'],
-            'final_video_path': iteration_results[-1].get('annotated_video_path'),  # ✅ NEW
+            'final_video_path': iteration_results[-1].get('annotated_video_path'),
             'original_model_path': self.original_model_path,
             'all_iteration_results': iteration_results,
             'improvement_metrics': {
@@ -1106,7 +1106,7 @@ class DomainAdaptation:
 
 def main():
     parser = argparse.ArgumentParser(description="Domain Adaptation with Video Annotation")
-    parser.add_argument("config", help="Path to configuration YAML file")
+    parser.add_argument("config",default = "config.yaml", help="Path to configuration YAML file")
     parser.add_argument("--skip-videos", action="store_true", help="Skip video annotation (faster)")
 
     args = parser.parse_args()
