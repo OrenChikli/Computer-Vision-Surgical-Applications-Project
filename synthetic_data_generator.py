@@ -138,7 +138,7 @@ def main():
 
     # Simple argument parser for config file path
     parser = argparse.ArgumentParser(description="Generate synthetic surgical instrument dataset")
-    parser.add_argument('--config', default='config/config.yaml', help='Path to configuration file')
+    parser.add_argument('--config', default='config/default_config.yaml', help='Path to configuration file')
     args = parser.parse_args()
 
     # Load configuration
