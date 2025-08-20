@@ -32,7 +32,7 @@ if str(project_root) not in sys.path:
 try:
     from video import VideoAnnotator
 except ImportError as e:
-    print(f"❌ Failed to import VideoAnnotator: {e}")
+    print(f"Failed to import VideoAnnotator: {e}")
     print(f"   Make sure you're running from the project root directory")
     print(f"   Project root: {project_root}")
     raise
@@ -110,15 +110,22 @@ class PseudoLabelExtractor:
 
     def _run_tracking(self, video_path: str):
         """Run tracking on video with configured parameters"""
+        # Use lower confidence for tracking to capture more detections initially
+        tracking_conf = min(0.3, self.config.get('pseudo_labeling.confidence_threshold'))
+        
         tracking_params = {
             'source': video_path,
-            'conf': self.config.get('pseudo_labeling.confidence_threshold'),
+            'conf': tracking_conf,  # Lower threshold for initial tracking
             'persist': self.config.get('tracking.persist'),
             'tracker': self.config.get('tracking.tracker'),
             'save': False,
             'stream': True,
             'verbose': self.config.get('tracking.verbose')
         }
+        
+        self.logger.info(f"Tracking with confidence threshold: {tracking_conf}")
+        self.logger.info(f"Pseudo-labeling will filter to: {self.config.get('pseudo_labeling.confidence_threshold')}")
+        
         return self.model.track(**tracking_params)
 
     def _process_tracking_results(self, results, video_path: str) -> Dict[int, List[Dict]]:
@@ -239,21 +246,8 @@ class DatasetManager:
         self.config = config
         self.output_dir = output_dir
         self.logger = logging.getLogger(self.__class__.__name__)
-        self._setup_directories()
-
-    def _setup_directories(self):
-        """Create necessary directories"""
-        directories = [
-            self.output_dir,
-            self.output_dir / self.config.get('output.images_dir'),
-            self.output_dir / self.config.get('output.labels_dir'),
-            self.output_dir / self.config.get('output.pseudo_dir'),
-            self.output_dir / self.config.get('output.pseudo_dir') / self.config.get('output.images_dir'),
-            self.output_dir / self.config.get('output.pseudo_dir') / self.config.get('output.labels_dir')
-        ]
-
-        for directory in directories:
-            directory.mkdir(parents=True, exist_ok=True)
+        # Only create the main output directory, not subdirectories
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def save_pseudo_labels(self, pseudo_labels: List[PseudoLabel]):
         """Save pseudo-labeled data in YOLO format - MEMORY FIXED"""
@@ -261,6 +255,10 @@ class DatasetManager:
 
         pseudo_images_dir = self.output_dir / self.config.get('output.pseudo_dir') / self.config.get('output.images_dir')
         pseudo_labels_dir = self.output_dir / self.config.get('output.pseudo_dir') / self.config.get('output.labels_dir')
+        
+        # Create pseudo-label directories only when needed
+        pseudo_images_dir.mkdir(parents=True, exist_ok=True)
+        pseudo_labels_dir.mkdir(parents=True, exist_ok=True)
 
         for i, label_data in enumerate(tqdm(pseudo_labels, desc="Saving pseudo-labels")):
             frame = self._load_frame_from_video(label_data.video_path, label_data.frame_id)
@@ -328,9 +326,15 @@ class DatasetManager:
         synthetic_images = self._find_files(synthetic_data_path, "images", self.config.get('data.image_extensions'))
         synthetic_labels = self._find_files(synthetic_data_path, "labels", [self.config.get('data.label_extension')])
 
+        # Create main directories only when copying files
+        images_dir = self.output_dir / self.config.get('output.images_dir')
+        labels_dir = self.output_dir / self.config.get('output.labels_dir')
+        images_dir.mkdir(parents=True, exist_ok=True)
+        labels_dir.mkdir(parents=True, exist_ok=True)
+
         self.logger.info(f"Found {len(synthetic_images)} synthetic images and {len(synthetic_labels)} labels")
-        self._copy_files(synthetic_images, self.output_dir / self.config.get('output.images_dir'))
-        self._copy_files(synthetic_labels, self.output_dir / self.config.get('output.labels_dir'))
+        self._copy_files(synthetic_images, images_dir)
+        self._copy_files(synthetic_labels, labels_dir)
 
     def _find_files(self, base_path: Path, subdir: str, extensions: List[str]) -> List[Path]:
         """Find files with specified extensions in directory structure"""
@@ -364,8 +368,16 @@ class DatasetManager:
         pseudo_images = list((pseudo_dir / self.config.get('output.images_dir')).glob("*"))
         pseudo_labels = list((pseudo_dir / self.config.get('output.labels_dir')).glob("*"))
 
-        self._copy_files(pseudo_images, self.output_dir / self.config.get('output.images_dir'))
-        self._copy_files(pseudo_labels, self.output_dir / self.config.get('output.labels_dir'))
+        # Create main directories only if there are files to copy
+        if pseudo_images or pseudo_labels:
+            images_dir = self.output_dir / self.config.get('output.images_dir')
+            labels_dir = self.output_dir / self.config.get('output.labels_dir')
+            images_dir.mkdir(parents=True, exist_ok=True)
+            labels_dir.mkdir(parents=True, exist_ok=True)
+            
+            self._copy_files(pseudo_images, images_dir)
+            self._copy_files(pseudo_labels, labels_dir)
+            
         return len(pseudo_images), len(pseudo_labels)
 
     def create_dataset_yaml(self, dataset_config: Dict[str, Any]):
@@ -419,7 +431,7 @@ class DomainAdaptation:
         self.pseudo_extractor = PseudoLabelExtractor(self.model, self.config)
         self.dataset_manager = DatasetManager(self.config, self.output_dir)
 
-        self.logger.info("🎬 Domain adaptation with video annotation initialized")
+        self.logger.info("Domain adaptation with video annotation initialized")
 
     def _setup_logging(self):
         """Setup logging configuration"""
@@ -443,9 +455,9 @@ class DomainAdaptation:
                 missing_paths.append(f"{path_name}: {path_value}")
 
         if missing_paths:
-            error_msg = "❌ Missing required input paths:\n" + "\n".join(f"  • {p}" for p in missing_paths)
+            error_msg = "Missing required input paths:\n" + "\n".join(f"  - {p}" for p in missing_paths)
             self.logger.error(error_msg)
-            self.logger.error("📝 Please update your domain_adaptation/config.yaml file with correct paths")
+            self.logger.error("Please update your domain_adaptation/config.yaml file with correct paths")
             raise FileNotFoundError(error_msg)
 
         # Validate file formats
@@ -456,32 +468,32 @@ class DomainAdaptation:
         # Validate model file
         model_path = Path(self.original_model_path)
         if not model_path.suffix == '.pt':
-            raise ValueError(f"❌ Model file must be a .pt file, got: {model_path.suffix}")
+            raise ValueError(f"Model file must be a .pt file, got: {model_path.suffix}")
         
         # Validate video file
         video_path = Path(self.real_video_path)
         video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.wmv'}
         if video_path.suffix.lower() not in video_extensions:
-            self.logger.warning(f"⚠️  Video file extension {video_path.suffix} may not be supported")
+            self.logger.warning(f"Video file extension {video_path.suffix} may not be supported")
         
         # Test video accessibility
         try:
             import cv2
             cap = cv2.VideoCapture(str(video_path))
             if not cap.isOpened():
-                raise ValueError(f"❌ Cannot open video file: {video_path}")
+                raise ValueError(f"Cannot open video file: {video_path}")
             
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             cap.release()
             
             if frame_count == 0:
-                raise ValueError(f"❌ Video file appears to be empty: {video_path}")
+                raise ValueError(f"Video file appears to be empty: {video_path}")
                 
-            self.logger.info(f"✅ Video validation passed: {frame_count} frames at {fps} FPS")
+            self.logger.info(f"Video validation passed: {frame_count} frames at {fps} FPS")
             
         except Exception as e:
-            raise ValueError(f"❌ Video validation failed: {e}")
+            raise ValueError(f"Video validation failed: {e}")
             
         # Validate synthetic dataset structure
         synthetic_path = Path(self.synthetic_data_path)
@@ -493,14 +505,14 @@ class DomainAdaptation:
                 missing_subdirs.append(subdir)
                 
         if missing_subdirs:
-            raise ValueError(f"❌ Synthetic dataset missing required directories: {missing_subdirs}\n"
+            raise ValueError(f"Synthetic dataset missing required directories: {missing_subdirs}\n"
                            f"Expected YOLO format with 'images' and 'labels' folders")
                            
         # Check for dataset.yaml
         if not (synthetic_path / 'dataset.yaml').exists():
-            self.logger.warning("⚠️  dataset.yaml not found in synthetic dataset - will attempt to create one")
+            self.logger.warning("dataset.yaml not found in synthetic dataset - will attempt to create one")
             
-        self.logger.info("✅ All input validations passed")
+        self.logger.info("All input validations passed")
         
         # Validate evaluation configuration
         self._validate_evaluation_config()
@@ -508,24 +520,24 @@ class DomainAdaptation:
     def _validate_evaluation_config(self):
         """Validate evaluation configuration settings"""
         if self.run_evaluation:
-            self.logger.info("✅ Automatic evaluation enabled")
+            self.logger.info("Automatic evaluation enabled")
             
             # Validate sample rate
             if not isinstance(self.evaluation_sample_rate, int) or self.evaluation_sample_rate < 1:
-                raise ValueError(f"❌ evaluation.sample_rate must be a positive integer, got: {self.evaluation_sample_rate}")
+                raise ValueError(f"evaluation.sample_rate must be a positive integer, got: {self.evaluation_sample_rate}")
             
             if self.evaluation_sample_rate > 50:
-                self.logger.warning(f"⚠️  High sample_rate ({self.evaluation_sample_rate}) will process very few frames")
+                self.logger.warning(f"High sample_rate ({self.evaluation_sample_rate}) will process very few frames")
                 
             # Check for RefinementEvaluator availability
             try:
                 from evaluate_refinement import RefinementEvaluator
-                self.logger.info("✅ RefinementEvaluator available for automatic evaluation")
+                self.logger.info("RefinementEvaluator available for automatic evaluation")
             except ImportError as e:
-                raise ImportError(f"❌ Cannot import RefinementEvaluator for automatic evaluation: {e}")
+                raise ImportError(f"Cannot import RefinementEvaluator for automatic evaluation: {e}")
                 
         else:
-            self.logger.info("📊 Automatic evaluation disabled - use evaluate_refinement.py manually")
+            self.logger.info("Automatic evaluation disabled - use evaluate_refinement.py manually")
 
     def _get_dataset_config(self) -> Dict[str, Any]:
         """Get dataset configuration from model"""
@@ -560,11 +572,11 @@ class DomainAdaptation:
             Path to annotated video or None if failed
         """
         if not self.enable_video_annotation :
-            self.logger.info("🎬 Video annotation disabled")
+            self.logger.info("Video annotation disabled")
             return None
 
         try:
-            self.logger.info(f"🎬 Creating annotated video with {model_name}...")
+            self.logger.info(f"Creating annotated video with {model_name}...")
 
             # Create video output path
             video_name = Path(self.real_video_path).stem
@@ -576,7 +588,7 @@ class DomainAdaptation:
             # Progress callback
             def progress_callback(frame_idx, total_frames, progress_pct):
                 if frame_idx % 100 == 0:  # Log every 100 frames
-                    self.logger.info(f"   🎬 Video annotation progress: {frame_idx}/{total_frames} ({progress_pct:.1f}%)")
+                    self.logger.info(f"   Video annotation progress: {frame_idx}/{total_frames} ({progress_pct:.1f}%)")
 
             # Annotate video
             stats = annotator.annotate_video(
@@ -588,24 +600,24 @@ class DomainAdaptation:
                 progress_callback=progress_callback
             )
 
-            self.logger.info(f"✅ Video annotation completed:")
-            self.logger.info(f"   📊 Processed {stats['processed_frames']} frames")
-            self.logger.info(f"   🎯 Total detections: {stats['total_detections']}")
-            self.logger.info(f"   📈 Avg detections per frame: {stats['avg_detections_per_frame']:.2f}")
-            self.logger.info(f"   💾 Saved to: {output_video_path}")
+            self.logger.info(f"Video annotation completed:")
+            self.logger.info(f"   Processed {stats['processed_frames']} frames")
+            self.logger.info(f"   Total detections: {stats['total_detections']}")
+            self.logger.info(f"   Avg detections per frame: {stats['avg_detections_per_frame']:.2f}")
+            self.logger.info(f"   Saved to: {output_video_path}")
 
             return str(output_video_path)
 
         except ImportError as e:
-            self.logger.error(f"❌ Video annotation failed - Missing dependency: {e}")
+            self.logger.error(f"Video annotation failed - Missing dependency: {e}")
             self.logger.error("   Install required packages: pip install opencv-python ultralytics")
             return None
         except MemoryError:
-            self.logger.error(f"❌ Video annotation failed - Out of memory")
+            self.logger.error(f"Video annotation failed - Out of memory")
             self.logger.error("   Try reducing batch_size or enabling CPU inference in config")
             return None
         except Exception as e:
-            self.logger.error(f"❌ Video annotation failed: {e}")
+            self.logger.error(f"Video annotation failed: {e}")
             self.logger.error(f"   Check video file format and model compatibility")
             return None
 
@@ -613,12 +625,12 @@ class DomainAdaptation:
         """
         Complete iterative domain adaptation pipeline with video annotation
         """
-        self.logger.info("🚀 Starting domain adaptation with video annotation...")
+        self.logger.info("Starting domain adaptation with video annotation...")
 
         # Step 0: Create annotated video with original model
         if self.enable_video_annotation:
             self.logger.info(f"\n{'='*60}")
-            self.logger.info(f"🎬 CREATING BASELINE VIDEO ANNOTATION")
+            self.logger.info(f"CREATING BASELINE VIDEO ANNOTATION")
             self.logger.info(f"{'='*60}")
 
             baseline_video_path = self._annotate_video_with_model(
@@ -643,7 +655,7 @@ class DomainAdaptation:
         try:
             for iteration in range(1, num_iterations + 1):
                 self.logger.info(f"\n{'='*60}")
-                self.logger.info(f"🔄 Starting Iteration {iteration}/{num_iterations}")
+                self.logger.info(f"Starting Iteration {iteration}/{num_iterations}")
                 self.logger.info(f"{'='*60}")
 
                 # Create iteration-specific output directory
@@ -667,7 +679,7 @@ class DomainAdaptation:
                 if retrain and iteration_result.get('refined_model_path'):
                     refined_model_path = iteration_result['refined_model_path']
                     if Path(refined_model_path).exists():
-                        self.logger.info(f"\n🎬 Creating annotated video for iteration {iteration}...")
+                        self.logger.info(f"\nCreating annotated video for iteration {iteration}...")
 
                         iteration_video_path = self._annotate_video_with_model(
                             model_path=refined_model_path,
@@ -685,9 +697,9 @@ class DomainAdaptation:
                     refined_path = Path(iteration_result['refined_model_path'])
                     if refined_path.exists():
                         current_model_path = str(refined_path)
-                        self.logger.info(f"✅ Updated model path for next iteration: {current_model_path}")
+                        self.logger.info(f"Updated model path for next iteration: {current_model_path}")
 
-                self.logger.info(f"✅ Iteration {iteration} completed successfully.")
+                self.logger.info(f"Iteration {iteration} completed successfully.")
 
                 # Save intermediate results
                 if save_intermediate:
@@ -702,13 +714,13 @@ class DomainAdaptation:
 
             self._save_overall_summary(overall_results)
 
-            self.logger.info("🎉 Domain adaptation with video annotation completed!")
+            self.logger.info("Domain adaptation with video annotation completed!")
             self._print_video_summary(overall_results)
 
             # Run automatic evaluation if enabled
             if self.run_evaluation:
                 self.logger.info(f"\n{'='*60}")
-                self.logger.info(f"📊 RUNNING AUTOMATIC EVALUATION")
+                self.logger.info(f"RUNNING AUTOMATIC EVALUATION")
                 self.logger.info(f"{'='*60}")
                 
                 evaluation_results = self._run_automatic_evaluation(overall_results)
