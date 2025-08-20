@@ -4,13 +4,18 @@ Simple script to run domain adaptation pipeline
 
 import argparse
 import sys
+import os
 from pathlib import Path
+
+# Add parent directory to path to access utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from domain_adaptation import DomainAdaptation
 
 
 def main():
     parser = argparse.ArgumentParser(description="Run Domain Adaptation for Surgical Tool Pose Estimation")
-    parser.add_argument("--config", default="domain_adaptation/config.yaml", help="Path to configuration YAML file")
+    parser.add_argument("--config", default="config.yaml", help="Path to configuration YAML file")
     parser.add_argument("--no-retrain", action="store_true", help="Skip retraining (only generate pseudo-labels)")
 
     args = parser.parse_args()

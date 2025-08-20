@@ -4,6 +4,9 @@ Saves annotated videos at each step to visualize improvements
 """
 
 import cv2
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.yaml_utils import load_yaml, save_yaml
 import shutil
 import numpy as np

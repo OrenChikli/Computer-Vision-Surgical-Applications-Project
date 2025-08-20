@@ -5,41 +5,14 @@ This project implements a synthetic data generation pipeline for 2D pose estimat
 ## Project Structure
 
 ```
-├── annotation/
-│   ├── SURGICAL_TOOL_ANNOTATOR_GUIDE.md  # Tool annotation guide
-│   ├── tool_annotator.py                  # Manual annotation tool
-│   └── tool_skeletons.json               # Tool keypoint definitions
-├── config.yaml                          # Complete configuration for all phases
-├── domain_adaptation/
-│   ├── __init__.py
-│   ├── README.md                         # Domain adaptation guide
-│   ├── domain_adaptation.py              # Core adaptation logic
-│   ├── evaluate_refinement.py            # Evaluation tools
-│   └── run_domain_adaptation.py          # Main adaptation script
-├── examples/
-│   ├── 000000.jpg - 000009.jpg           # 10 example synthetic images
-│   ├── results_refined.mp4               # Refined model results
-│   └── results_synthetic_only.mp4        # Synthetic-only model results
-├── utils/
-│   ├── __init__.py
-│   ├── camera_utils.py                   # Camera positioning utilities
-│   ├── coco_utils.py                     # COCO format handling
-│   ├── coco_to_yolo.py                   # COCO to YOLO converter
-│   ├── lighting_utils.py                 # Lighting setup
-│   ├── material_utils.py                 # Material properties
-│   ├── statistics_tracker.py             # Dataset statistics
-│   ├── visualization.py                  # Keypoint visualization
-│   ├── keypoint_extractor.py             # Keypoint extraction logic
-│   ├──tool_manager.py                   # Tool loading and management
-│   └── workspace_utils.py                # Workspace generation
-│
-├── directory_structure.md                # Project structure details
-├── predict.py                            # Single image prediction (Phase 2)
-├── requirements.txt                      # Python dependencies
-├── setup_pip.py                         # Automated environment setup
-├── setup_guide.md                       # Setup instructions
-├── synthetic_data_generator.py          # Main entry point (Phase 1)
-└── video.py                             # Video processing (Phase 2)
+├── config.yaml                      # Configuration for all phases
+├── synthetic_data_generator.py      # Phase 1: Generate synthetic data
+├── predict.py                       # Phase 2: Single image prediction
+├── video.py                         # Phase 2: Video processing
+├── domain_adaptation/               # Phase 3: Domain adaptation scripts
+├── utils/                          # Helper utilities and converters
+├── examples/                       # Sample outputs and result videos
+└── annotation/                     # Manual annotation tools
 ```
 
 ## Quick Start

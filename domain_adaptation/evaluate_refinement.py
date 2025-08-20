@@ -4,8 +4,10 @@ Enhanced evaluation script for comparing model performance before and after doma
 
 import cv2
 import json
-from utils.yaml_utils import load_yaml
 import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.yaml_utils import load_yaml
 import logging
 import numpy as np
 from pathlib import Path
