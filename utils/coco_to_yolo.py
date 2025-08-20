@@ -16,7 +16,7 @@ import shutil
 import random
 from pathlib import Path
 from typing import Dict, List, Tuple
-import yaml
+from yaml_utils import save_yaml
 
 
 class COCOToYOLOConverter:
@@ -336,8 +336,7 @@ class COCOToYOLOConverter:
         }
 
         yaml_path = self.output_dir / "dataset.yaml"
-        with open(yaml_path, 'w') as f:
-            yaml.dump(yaml_content, f, sort_keys=False, indent=2, default_flow_style=False)
+        save_yaml(yaml_content, yaml_path, sort_keys=False)
 
         print(f"📄 Created dataset.yaml: {yaml_path}")
         print(f"  - Keypoints: {len(self.all_keypoint_names)}")

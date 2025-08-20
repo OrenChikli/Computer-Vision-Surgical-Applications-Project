@@ -1,0 +1,208 @@
+# Complete Configuration for Surgical Instrument Pose Estimation Project
+# This file contains settings for all three phases:
+# Phase 1: Synthetic Data Generation
+# Phase 2: Model Training 
+# Phase 3: Domain Adaptation
+
+# =============================================================================
+# PHASE 1: SYNTHETIC DATA GENERATION
+# =============================================================================
+
+# Basic paths - MUST be updated for your setup
+tools_path: ""                    # Path to 3D surgical instrument models (.obj files)
+annotations_path: ""              # Path to keypoint annotations
+camera_params: ""                 # Path to camera.json file
+output_dir: "output"              # Output directory for synthetic dataset
+hdri_path: ""                     # Optional: HDRI files for realistic lighting
+
+# Dataset parameters
+num_images: 1000                  # Number of synthetic images to generate
+poses_per_workspace: 5            # Camera poses per workspace setup
+workspace_size: 3.5               # Size of surgical workspace
+
+# Rendering settings
+render_width: 1920                # Image width
+render_height: 1080               # Image height
+render_samples: 100               # Render samples (higher = better quality, slower)
+
+# Effects and augmentation
+motion_blur_prob: 0.3             # Probability of motion blur
+occlusion_prob: 0.3               # Probability of medical glove occlusion
+
+# Output options
+visualize_keypoints: true         # Generate visualization images for debugging
+enable_statistics: true          # Enable comprehensive dataset statistics tracking
+debug: false                      # Enable debug mode
+seed: 42                          # Random seed for reproducibility
+
+# Advanced settings (usually don't need to change)
+tool_scale_range: [0.2, 0.35]
+tool_rotation_range: [-0.4, 0.4]
+tool_z_variation: [-0.05, 0.05]
+min_tool_distance: 0.2
+max_placement_attempts: 100
+
+# Camera parameters
+camera_height_range: [2.0, 3.5]
+camera_offset_range: [-0.8, 0.8]
+camera_rotation_range: [-0.3, 0.3]
+camera_pose_max_attempts: 10
+camera_min_distance_threshold: 0.1
+camera_max_angle_from_vertical: 60.0
+camera_fallback_height: 3.5
+
+# Lighting parameters
+main_light_energy_range: [1200, 1800]
+fill_light_energy_range: [500, 900]
+side_light_energy_range: [300, 600]
+ambient_light_range: [0.2, 0.5]
+
+# Light color ranges (RGB 0.0-1.0)
+main_light_color:
+  r_range: [0.0, 0.5]
+  g_range: [0.0, 0.5]
+  b_range: [0.0, 0.5]
+
+fill_light_color:
+  r_range: [0.0, 0.5]
+  g_range: [0.0, 0.5]
+  b_range: [0.0, 0.5]
+
+side_light_color:
+  r_range: [0.0, 0.5]
+  g_range: [0.0, 0.5]
+  b_range: [0.0, 0.5]
+
+ambient_light_color:
+  r_range: [0.0, 0.5]
+  g_range: [0.0, 0.5]
+  b_range: [0.0, 0.5]
+
+# Light positioning
+main_light_offset_range: [-0.5, 0.5]
+main_light_height_range: [2.5, 3.5]
+main_light_size_range: [1.0, 1.5]
+fill_light_offset_range: [-1.5, 1.5]
+fill_light_height_range: [2.0, 3.0]
+side_light_offset_range: [-2.0, 2.0]
+side_light_height_range: [1.5, 2.5]
+
+# Material parameters
+material_ior_range: [1.4, 2.5]
+material_roughness_range: [0.1, 0.4]
+material_metallic_value: 1.0
+gold_hsv_min: [0.03, 0.95, 0.8]
+gold_hsv_max: [0.25, 1.0, 1.0]
+
+# Motion blur parameters
+motion_blur_length_range: [0.1, 0.5]
+motion_offset_range:
+  min: [-0.08, -0.08, -0.05]
+  max: [0.08, 0.08, 0.05]
+
+# Medical glove occlusion parameters
+occlusion_blob_size_range: [0.05, 0.2]
+occlusion_blob_count_range: [1, 1]
+occlusion_glove_colors:
+  - [0.0, 0.2, 0.8]      # Nitrile blue
+  - [0.4, 0.0, 0.7]      # Purple nitrile
+  - [0.9, 0.9, 0.85]     # Latex white/cream
+  - [0.0, 0.6, 0.9]      # Light blue
+  - [0.8, 0.85, 0.9]     # Very light blue/white
+glove_roughness_range: [0.1, 0.3]
+
+# Occlusion keypoints for different tool types
+occlusion_keypoints:
+  needle_holder: ['base_left_forcep', 'base_right_forcep']
+  tweezers: ['base']
+
+# Keypoint annotation parameters
+keypoint_visible_value: 2
+keypoint_not_visible_value: 0
+keypoint_not_available_value: 0
+
+# =============================================================================
+# PHASE 3: DOMAIN ADAPTATION
+# =============================================================================
+
+# Input paths for domain adaptation
+paths:
+  # Path to your trained Phase 2 model (from YOLO training results)
+  model_path: "training_results/surgical_pose_v1/weights/best.pt"
+  
+  # Path to your Phase 1 synthetic dataset (YOLO format)  
+  synthetic_data_path: "datasets/yolo_dataset"
+  
+  # Path to real surgical video for domain adaptation
+  real_video_path: "data/real_videos/surgical_video.mp4"
+  
+  # Output directory for domain adaptation results
+  output_dir: "output/domain_adaptation_results"
+
+# Video annotation settings
+video_annotation:
+  enabled: true                   # Set to false to skip video creation (faster)
+  confidence_threshold: 0.5       # Confidence threshold for video annotations
+  save_format: "mp4"              # Video format
+  progress_logging: true          # Log progress during video creation
+
+# Pseudo-labeling parameters
+pseudo_labeling:
+  confidence_threshold: 0.8       # Minimum confidence for pseudo-labels
+  track_min_length: 3            # Minimum track length for stability
+  max_pseudo_labels: 500         # Maximum number of pseudo-labels to prevent imbalance
+
+# Iterative refinement parameters
+refinement:
+  iterations: 3                   # Number of refinement iterations
+  save_intermediate_models: true  # Save model after each iteration
+  accumulate_data: true          # Whether to accumulate data from previous iterations
+
+# Tracking parameters
+tracking:
+  tracker: "botsort.yaml"         # Tracker configuration
+  persist: true                   # Maintain tracks across frames
+  verbose: false                  # Reduce tracking output
+
+# Training parameters for domain adaptation
+training:
+  epochs: 10                      # Number of training epochs
+  batch_size: 16                  # Batch size for training
+  imgsz: 640                      # Image size for training
+  device: "auto"                  # Device selection (auto/cpu/cuda)
+  verbose: true                   # Training verbosity
+
+# Model parameters
+model:
+  pretrained: true                # Use pretrained weights
+  exist_ok: true                  # Allow existing project directories
+
+# Evaluation parameters
+evaluation:
+  run_evaluation: true            # Whether to run automatic evaluation
+  sample_rate: 5                  # Process every nth frame during evaluation
+
+# Data processing
+data:
+  image_extensions: [".jpg", ".jpeg", ".png", ".bmp"]
+  label_extension: ".txt"
+
+# Output structure for domain adaptation
+output:
+  images_dir: "images"
+  labels_dir: "labels"
+  pseudo_dir: "pseudo_labeled"
+  dataset_config: "dataset.yaml"
+  refined_model_dir: "refined_model"
+
+# Logging configuration
+logging:
+  level: "INFO"                   # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Memory management
+memory_management:
+  chunk_size: 50
+  cleanup_frequency: 100
+  force_cpu_inference: false
+  max_frames_in_memory: 200

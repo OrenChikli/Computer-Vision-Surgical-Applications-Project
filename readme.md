@@ -9,16 +9,10 @@ This project implements a synthetic data generation pipeline for 2D pose estimat
 │   ├── SURGICAL_TOOL_ANNOTATOR_GUIDE.md  # Tool annotation guide
 │   ├── tool_annotator.py                  # Manual annotation tool
 │   └── tool_skeletons.json               # Tool keypoint definitions
-├── config/
-│   ├── __init__.py
-│   ├── config.yaml                       # Example configuration
-│   ├── config_examples.yaml              # Additional config examples
-│   ├── config_loader.py                  # YAML configuration loading
-│   └── default_config.yaml               # Default configuration values
+├── config.yaml                          # Complete configuration for all phases
 ├── domain_adaptation/
 │   ├── __init__.py
 │   ├── README.md                         # Domain adaptation guide
-│   ├── config.yaml                       # Domain adaptation config
 │   ├── domain_adaptation.py              # Core adaptation logic
 │   ├── evaluate_refinement.py            # Evaluation tools
 │   └── run_domain_adaptation.py          # Main adaptation script
@@ -118,12 +112,14 @@ data/
 Copy and modify the configuration file:
 
 ```bash
-# Option 1: Use the provided example configuration
-cp config/config.yaml my_config.yaml
-
-# Option 2: Start from the default configuration  
-cp config/default_config.yaml my_config.yaml
+# Copy the main configuration file (contains all phases)
+cp config.yaml my_config.yaml
 ```
+
+The `config.yaml` file contains settings for all three phases:
+- Phase 1: Synthetic Data Generation
+- Phase 2: Model Training parameters
+- Phase 3: Domain Adaptation
 
 Edit `my_config.yaml` to set your specific paths:
 
@@ -267,10 +263,10 @@ pseudo_labeling:
 
 ```bash
 # Basic domain adaptation with default settings
-python domain_adaptation/run_domain_adaptation.py --config domain_adaptation/config.yaml
+python domain_adaptation/run_domain_adaptation.py --config config.yaml
 
 # Skip model retraining (only extract pseudo-labels for analysis)
-python domain_adaptation/run_domain_adaptation.py --config domain_adaptation/config.yaml --no-retrain
+python domain_adaptation/run_domain_adaptation.py --config config.yaml --no-retrain
 ```
 #### Step 3: Results and Evaluation
 
@@ -280,7 +276,7 @@ Domain adaptation automatically runs evaluation when `evaluation.run_evaluation:
 **Manual Evaluation (Optional):**
 ```bash
 # Run detailed evaluation separately (creates additional videos)
-python domain_adaptation/evaluate_refinement.py domain_adaptation/config.yaml
+python domain_adaptation/evaluate_refinement.py config.yaml
 ```
 
 **Note**: Automatic evaluation focuses on metrics only to avoid video duplication, while manual evaluation creates additional annotated videos for detailed analysis.
@@ -560,18 +556,18 @@ python scripts/coco_to_yolo.py path/to/coco_annotations.json path/to/yolo_output
 python setup.py
 ```
 
-### Available Configurations
+### Configuration File
 
-The project includes several configuration files:
+The project uses a single consolidated configuration file:
 
-- `config/default_config.yaml`: Default settings with documentation
-- `config/config.yaml`: Example configuration ready to use
-- `config/config_examples.yaml`: Additional configuration examples
+- `config.yaml`: Complete configuration for all three phases with documentation and default values
 
 ```bash
-# Use different configurations (remember to use blenderproc)
-blenderproc run synthetic_data_generator.py --config config/config.yaml
-blenderproc run synthetic_data_generator.py --config config/default_config.yaml
+# Use the main configuration file
+blenderproc run synthetic_data_generator.py --config config.yaml
+
+# Or use a custom configuration
+blenderproc run synthetic_data_generator.py --config my_config.yaml
 ```
 
 ## Troubleshooting

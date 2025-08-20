@@ -4,7 +4,7 @@ Enhanced evaluation script for comparing model performance before and after doma
 
 import cv2
 import json
-import yaml
+from utils.yaml_utils import load_yaml
 import sys
 import logging
 import numpy as np
@@ -786,8 +786,7 @@ def main():
 
     try:
         # Load configuration
-        with open(args.config, 'r') as f:
-            config = yaml.safe_load(f)
+        config = load_yaml(args.config)
 
         # Extract paths from config
         original_model_path = config['paths']['model_path']

@@ -14,7 +14,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.append(script_dir)
 
-from config import load_config
+from utils.yaml_utils import load_yaml
 from utils.tool_manager import ToolManager
 from utils.camera_utils import setup_camera, sample_camera_pose
 from utils.lighting_utils import setup_lighting
@@ -138,12 +138,12 @@ def main():
 
     # Simple argument parser for config file path
     parser = argparse.ArgumentParser(description="Generate synthetic surgical instrument dataset")
-    parser.add_argument('--config', default='config/default_config.yaml', help='Path to configuration file')
+    parser.add_argument('--config', default='config.yaml', help='Path to configuration file')
     args = parser.parse_args()
 
     # Load configuration
     try:
-        config = load_config(args.config)
+        config = load_yaml(args.config)
         print(f"✅ Loaded configuration from {args.config}")
     except Exception as e:
         print(f"❌ Failed to load configuration: {e}")
@@ -252,9 +252,8 @@ def main():
         yolo_config = tool_manager.generate_yolo_dataset_config(str(output_dir.absolute()))
         yolo_config_path = output_dir / "dataset.yaml"
         
-        import yaml
-        with open(yolo_config_path, 'w') as f:
-            yaml.dump(yolo_config, f, default_flow_style=False, sort_keys=False)
+        from utils.yaml_utils import save_yaml
+        save_yaml(yolo_config, yolo_config_path, sort_keys=False)
             
         print(f"✅ YOLO dataset configuration saved to: {yolo_config_path}")
         print(f"   - {yolo_config['nc']} tool categories")

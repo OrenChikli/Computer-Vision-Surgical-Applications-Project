@@ -4,7 +4,7 @@ Saves annotated videos at each step to visualize improvements
 """
 
 import cv2
-import yaml
+from utils.yaml_utils import load_yaml, save_yaml
 import shutil
 import numpy as np
 import logging
@@ -50,12 +50,11 @@ class PseudoLabel:
 def _load_config(config_path: str) -> Dict[str, Any]:
     """Load configuration from YAML file"""
     try:
-        with open(config_path, 'r') as f:
-            return yaml.safe_load(f)
+        return load_yaml(config_path)
     except FileNotFoundError:
         logging.error(f"Configuration file not found: {config_path}")
         raise
-    except yaml.YAMLError as e:
+    except Exception as e:
         logging.error(f"Error parsing configuration file: {e}")
         raise
 
@@ -374,8 +373,7 @@ class DatasetManager:
         adapted_config['val'] = self.config.get('output.images_dir')
 
         yaml_path = self.output_dir / self.config.get('output.dataset_config')
-        with open(yaml_path, 'w') as f:
-            yaml.dump(adapted_config, f, default_flow_style=False)
+        save_yaml(adapted_config, yaml_path)
 
         self.logger.info(f"Created dataset config: {yaml_path}")
         return yaml_path
@@ -1106,7 +1104,7 @@ class DomainAdaptation:
 
 def main():
     parser = argparse.ArgumentParser(description="Domain Adaptation with Video Annotation")
-    parser.add_argument("config",default = "config.yaml", help="Path to configuration YAML file")
+    parser.add_argument("config", default="../config.yaml", help="Path to configuration YAML file")
     parser.add_argument("--skip-videos", action="store_true", help="Skip video annotation (faster)")
 
     args = parser.parse_args()
