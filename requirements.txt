@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cu126
 blenderproc==2.8.0
 certifi==2025.8.3
 charset-normalizer==3.4.3

@@ -1,51 +1,95 @@
 # Surgical Instrument 2D Pose Estimation
 
-This project implements a synthetic data generation pipeline for 2D pose estimation of surgical instruments, addressing the challenge of limited annotated real-world medical data.
+This project implements a synthetic data generation pipeline for 2D pose estimation of surgical instruments, for the Technion course Computer vision, Surgical applications (SM-00970222).
 
 ## Project Structure
 
 ```
+├── annotation/
+│   ├── SURGICAL_TOOL_ANNOTATOR_GUIDE.md  # Tool annotation guide
+│   ├── tool_annotator.py                  # Manual annotation tool
+│   └── tool_skeletons.json               # Tool keypoint definitions
 ├── config/
-│   ├── config_loader.py          # YAML configuration loading
-│   └── default_config.yaml       # Default configuration values
+│   ├── __init__.py
+│   ├── config.yaml                       # Example configuration
+│   ├── config_examples.yaml              # Additional config examples
+│   ├── config_loader.py                  # YAML configuration loading
+│   └── default_config.yaml               # Default configuration values
 ├── core/
-│   ├── tool_manager.py           # Tool loading and management
-│   ├── keypoint_extractor.py     # Keypoint extraction logic
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── keypoint_extractor.py             # Keypoint extraction logic
+│   └── tool_manager.py                   # Tool loading and management
+├── domain_adaptation/
+│   ├── __init__.py
+│   ├── README.md                         # Domain adaptation guide
+│   ├── config.yaml                       # Domain adaptation config
+│   ├── domain_adaptation.py              # Core adaptation logic
+│   ├── evaluate_refinement.py            # Evaluation tools
+│   └── run_domain_adaptation.py          # Main adaptation script
+├── examples/
+│   ├── 000000.jpg - 000009.jpg           # 10 example synthetic images
+│   ├── results_refined.mp4               # Refined model results
+│   └── results_synthetic_only.mp4        # Synthetic-only model results
+├── scripts/
+│   ├── coco_to_yolo.py                   # COCO to YOLO converter
+│   ├── train_coco_yolo.py                # Training utilities
 ├── utils/
-│   ├── camera_utils.py           # Camera positioning utilities
-│   ├── lighting_utils.py         # Lighting setup
-│   ├── material_utils.py         # Material properties
-│   ├── workspace_utils.py        # Workspace generation
-│   ├── visualization.py          # Keypoint visualization
-│   ├── coco_utils.py            # COCO format handling
-│   └── __init__.py
-├── synthetic_data_generator.py   # Main entry point
-├── predict.py                    # Single image prediction (Phase 2)
-├── video.py                     # Video processing (Phase 2)
-├── config.yaml                  # User configuration file
-├── requirements.txt             # Python dependencies
-└── README.md                    # This file
+│   ├── __init__.py
+│   ├── camera_utils.py                   # Camera positioning utilities
+│   ├── coco_utils.py                     # COCO format handling
+│   ├── lighting_utils.py                 # Lighting setup
+│   ├── material_utils.py                 # Material properties
+│   ├── statistics_tracker.py             # Dataset statistics
+│   ├── visualization.py                  # Keypoint visualization
+│   └── workspace_utils.py                # Workspace generation
+├── directory_structure.md                # Project structure details
+├── predict.py                            # Single image prediction (Phase 2)
+├── requirements.txt                      # Python dependencies
+├── setup_pip.py                         # Automated environment setup
+├── setup_guide.md                       # Setup instructions
+├── synthetic_data_generator.py          # Main entry point (Phase 1)
+└── video.py                             # Video processing (Phase 2)
 ```
 
 ## Quick Start
 
 ### 1. Environment Setup
 
-```bash
-# Clone the repository
-git clone <your-repo-url>
-cd surgical-instrument-pose-estimation
+**⚠️ Important**: This project requires **Python 3.10** for compatibility with BlenderProc and other dependencies.
 
-# Create a virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+#### Option A: Automated Setup (Recommended)
+
+Use the automated setup script that creates a Python 3.10 virtual environment and installs all dependencies:
+
+```bash
+# Run the automated setup (requires Python 3.10 to be installed on your system)
+python setup_pip.py
+```
+
+#### Option B: Manual Setup
+
+If you prefer manual setup:
+
+```bash
+# Create a virtual environment with Python 3.10 (recommended)
+python3.10 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Verify installation
-python setup.py
+```
+
+#### Activation
+
+After setup, activate the environment:
+
+```bash
+# On Linux/Mac:
+source .venv/bin/activate
+
+# On Windows:
+.venv\Scripts\activate
 ```
 
 ### 2. Data Preparation
@@ -77,10 +121,14 @@ data/
 Copy and modify the configuration file:
 
 ```bash
-cp config_example.yaml config.yaml
+# Option 1: Use the provided example configuration
+cp config/config.yaml my_config.yaml
+
+# Option 2: Start from the default configuration  
+cp config/default_config.yaml my_config.yaml
 ```
 
-Edit `config.yaml` to set your specific paths:
+Edit `my_config.yaml` to set your specific paths:
 
 ```yaml
 # Update these paths to match your data location
@@ -91,14 +139,7 @@ output_dir: "/path/to/output/dataset"
 hdri_path: "/path/to/hdri/files"  # Optional
 ```
 
-### 4. Test Your Setup
 
-```bash
-# Run a quick test to verify everything works (use blenderproc)
-blenderproc run scripts/test_generation.py
-
-# This will generate 3 test images and validate the output
-```
 
 ## Usage
 
@@ -108,7 +149,7 @@ Generate synthetic surgical instrument images with keypoint annotations:
 
 ```bash
 # Use blenderproc to run the generator (required for BlenderProc)
-blenderproc run synthetic_data_generator.py --config config.yaml
+blenderproc run synthetic_data_generator.py --config my_config.yaml
 ```
 
 **⚠️ Important**: You must use `blenderproc run` instead of `python` for the synthetic data generator since it uses BlenderProc.
@@ -231,7 +272,7 @@ python video.py path/to/video.mp4 --model path/to/best.pt --output predicted_vid
 
 ```bash
 # Copy example configuration and customize for your setup
-cp domain_adaptation/config_example.yaml domain_adaptation/config.yaml
+cp domain_adaptation/config.yaml domain_adaptation/my_config.yaml
 
 # Edit the configuration file with your specific paths
 nano domain_adaptation/config.yaml
@@ -429,11 +470,7 @@ After generating your COCO dataset, you can convert it to YOLO format for traini
 
 ### Installation
 
-Install the required dependencies for YOLO conversion:
-
-```bash
-pip install -r scripts/requirements_yolo.txt
-```
+The YOLO conversion dependencies are included in the main requirements.txt file. No additional installation needed.
 
 ### Conversion
 
@@ -534,18 +571,6 @@ Download links will be provided here for:
 
 ## Advanced Usage
 
-### Batch Generation
-
-Generate multiple datasets with different configurations:
-
-```bash
-# Create an example batch configuration
-python scripts/batch_generate.py --create-example
-
-# Edit batch_config_example.yaml for your needs, then run:
-python scripts/batch_generate.py --batch-config batch_config_example.yaml
-```
-
 ### Dataset Validation
 
 Validate your generated datasets:
@@ -568,48 +593,41 @@ Convert your COCO dataset to YOLO format for training:
 ```bash
 # Convert to YOLO format
 python scripts/coco_to_yolo.py path/to/coco_annotations.json path/to/yolo_output
-
-# See usage examples
-python scripts/convert_example.py
 ```
 
-### Data Preparation Utilities
+### Setup Verification
 
 ```bash
-# Prepare your data structure and create templates
-python scripts/prepare_data.py \
-    --tools-dir /path/to/3d/models \
-    --annotations-dir /path/to/annotations \
-    --camera-file /path/to/camera.json \
-    --create-templates
-
-# Verify your setup
+# Verify your setup and check dependencies
 python setup.py
 ```
 
-### Example Configurations
+### Available Configurations
 
-The `config/examples/` directory contains pre-configured setups:
+The project includes several configuration files:
 
-- `quick_test.yaml`: Fast generation for testing (5 images)
-- `high_quality.yaml`: High-resolution dataset (5000 images)
-- `development.yaml`: Balanced settings for development (20 images)
-- `paper_dataset.yaml`: Publication-quality dataset (10000 images)
-- `ablation_study.yaml`: Minimal effects for controlled studies
+- `config/default_config.yaml`: Default settings with documentation
+- `config/config.yaml`: Example configuration ready to use
+- `config/config_examples.yaml`: Additional configuration examples
 
 ```bash
-# Use example configurations (remember to use blenderproc)
-blenderproc run synthetic_data_generator.py --config config/examples/quick_test.yaml
+# Use different configurations (remember to use blenderproc)
+blenderproc run synthetic_data_generator.py --config config/config.yaml
+blenderproc run synthetic_data_generator.py --config config/default_config.yaml
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **BlenderProc Installation**: Ensure you have the correct Python version (3.7-3.11)
-2. **Missing Dependencies**: Install all requirements with `pip install -r requirements.txt`
-3. **Path Issues**: Use absolute paths in configuration files
-4. **Memory Issues**: Reduce `render_samples` or image resolution for lower memory usage
+1. **Python Version**: This project requires Python 3.10. Use `python setup_pip.py` for automated setup
+2. **BlenderProc Installation**: Make sure you're using Python 3.10 and the virtual environment
+3. **Missing Dependencies**: Install all requirements with `pip install -r requirements.txt`
+4. **Path Issues**: Use absolute paths in configuration files
+5. **Memory Issues**: Reduce `render_samples` or image resolution for lower memory usage
+6. **Virtual Environment**: Always activate the environment before running any scripts:
+   - Linux/Mac: `source .venv/bin/activate`
+   - Windows: `.venv\Scripts\activate`
 
 ### Performance Optimization
 
