@@ -72,7 +72,7 @@ If you prefer manual setup:
 
 ```bash
 # Create a virtual environment with Python 3.10 (recommended)
-python3.10 -m venv .venv
+py -3.10 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
@@ -112,7 +112,7 @@ data/
 └── camera.json                   # Camera intrinsic parameters
 ```
 
-**📚 For detailed annotation instructions, see: [annotation/SURGICAL_TOOL_ANNOTATOR_GUIDE.md](annotation/SURGICAL_TOOL_ANNOTATOR_GUIDE.md)**
+**📚 For detailed annotation instructions, see: [annotation/SURGICAL_TOOL_ANNOTATOR_GUIDE.md](annotation/TOOL_ANNOTATOR_GUIDE.md)**
 
 **💡 Note**: The `tool_skeletons.json` file should be created manually before starting annotation. See the annotation guide for details.
 

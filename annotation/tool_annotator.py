@@ -12,9 +12,10 @@ class BatchAnnotator:
     BlenderProc batch annotation system designed for debug mode
     """
 
-    def __init__(self, tools_root_dir, output_dir):
+    def __init__(self, tools_root_dir, output_dir, skeleton_file_path=None):
         self.tools_root_dir = tools_root_dir
         self.output_dir = output_dir
+        self.skeleton_file_path = skeleton_file_path
         self.current_tool_index = 0
         self.tools_queue = []
         self.progress_file = os.path.join(output_dir, "annotation_progress.json")
@@ -22,11 +23,67 @@ class BatchAnnotator:
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
 
+        # Copy skeleton file to output directory if it exists
+        self.copy_skeleton_file_to_output()
+
         # Scan for tools
         self.scan_tools_directory()
 
         # Load previous progress if exists
         self.load_progress()
+
+    def copy_skeleton_file_to_output(self):
+        """
+        Copy skeleton file from specified path or annotation directory to output directory
+        """
+        import shutil
+        
+        output_skeleton_path = os.path.join(self.output_dir, "tool_skeletons.json")
+        
+        # Determine source skeleton file path
+        if self.skeleton_file_path:
+            # Use user-specified path
+            source_skeleton_path = self.skeleton_file_path
+            print(f"Using custom skeleton file: {source_skeleton_path}")
+        else:
+            # Use default path - try multiple possible locations for annotation directory
+            script_dir = os.path.dirname(os.path.abspath(__file__)) if __file__ else os.getcwd()
+            
+            # If script_dir looks wrong (like just C:\), try to find annotation directory
+            possible_paths = [
+                os.path.join(script_dir, "tool_skeletons.json"),  # Same directory as script
+                os.path.join(os.getcwd(), "annotation", "tool_skeletons.json"),  # annotation subdir from current working dir
+                os.path.join(os.path.dirname(os.getcwd()), "annotation", "tool_skeletons.json"),  # annotation dir from parent
+                "annotation/tool_skeletons.json",  # Relative path
+                "./annotation/tool_skeletons.json"  # Relative path with explicit current dir
+            ]
+            
+            source_skeleton_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    source_skeleton_path = os.path.abspath(path)
+                    break
+            
+            if source_skeleton_path:
+                print(f"Using default skeleton file: {source_skeleton_path}")
+            else:
+                print("Warning: Could not find tool_skeletons.json in any expected location")
+                print(f"Searched in: {possible_paths}")
+                source_skeleton_path = os.path.join(script_dir, "tool_skeletons.json")  # Fallback
+
+        # Store the source path for later use
+        self.source_skeleton_path = source_skeleton_path
+        
+        # Copy skeleton file to output directory
+        if os.path.exists(source_skeleton_path):
+            try:
+                shutil.copy2(source_skeleton_path, output_skeleton_path)
+                print(f"Copied skeleton file to output directory: {output_skeleton_path}")
+            except Exception as e:
+                print(f"Warning: Could not copy skeleton file: {e}")
+        else:
+            print(f"Warning: No skeleton file found at {source_skeleton_path}")
+            print("Automatic keypoint creation will not be available")
 
     def scan_tools_directory(self):
         """
@@ -714,25 +771,52 @@ class BatchAnnotator:
         Automatically create keypoints based on the skeleton file
         """
         try:
-            # Load skeleton file
+            # Try to load skeleton file from output directory first, then from source
             skeleton_file = os.path.join(self.output_dir, "tool_skeletons.json")
+            
             if not os.path.exists(skeleton_file):
-                print(f"⚠️  No skeleton file found at {skeleton_file}")
-                return False
+                # If not in output directory, try the original source path
+                if hasattr(self, 'source_skeleton_path') and os.path.exists(self.source_skeleton_path):
+                    skeleton_file = self.source_skeleton_path
+                    print(f"Using skeleton file from source: {skeleton_file}")
+                else:
+                    # Try to find skeleton file in common locations
+                    script_dir = os.path.dirname(os.path.abspath(__file__)) if __file__ else os.getcwd()
+                    possible_paths = [
+                        os.path.join(script_dir, "tool_skeletons.json"),
+                        os.path.join(os.getcwd(), "annotation", "tool_skeletons.json"),
+                        os.path.join(os.path.dirname(os.getcwd()), "annotation", "tool_skeletons.json"),
+                        "annotation/tool_skeletons.json",
+                        "./annotation/tool_skeletons.json"
+                    ]
+                    
+                    skeleton_file = None
+                    for path in possible_paths:
+                        if os.path.exists(path):
+                            skeleton_file = os.path.abspath(path)
+                            print(f"Using skeleton file: {skeleton_file}")
+                            break
+                    
+                    if not skeleton_file:
+                        print(f"Warning: No skeleton file found in output directory: {os.path.join(self.output_dir, 'tool_skeletons.json')}")
+                        print(f"Also searched in: {possible_paths}")
+                        print("Automatic keypoint creation will not be available")
+                        return False
 
             with open(skeleton_file, 'r') as f:
                 skeletons = json.load(f)
 
             # Check if tool type exists in skeleton
             if tool_type not in skeletons:
-                print(f"⚠️  No skeleton found for tool type: {tool_type}")
+                print(f"Warning: No skeleton found for tool type: {tool_type}")
+                print(f"Available tool types: {list(skeletons.keys())}")
                 return False
 
             skeleton = skeletons[tool_type]
             keypoints = skeleton.get('keypoints', [])
 
             if not keypoints:
-                print(f"⚠️  No keypoints defined for {tool_type}")
+                print(f"Warning: No keypoints defined for {tool_type}")
                 return False
 
             # Clear existing keypoints
@@ -752,16 +836,16 @@ class BatchAnnotator:
 
                 created_keypoints.append(kp_name)
 
-            print(f"   • Created {len(created_keypoints)} keypoints: {', '.join(created_keypoints)}")
+            print(f"Created {len(created_keypoints)} keypoints: {', '.join(created_keypoints)}")
             
             # If skeleton has connections, create visualization lines (optional)
             if 'skeleton' in skeleton:
-                print(f"   • Skeleton connections: {len(skeleton['skeleton'])} lines defined")
+                print(f"Skeleton connections: {len(skeleton['skeleton'])} lines defined")
                 
             return True
 
         except Exception as e:
-            print(f"❌ Error creating keypoints from skeleton: {e}")
+            print(f"Error creating keypoints from skeleton: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -789,28 +873,38 @@ def start_annotation():
     global annotator
 
     if len(sys.argv) < 3:
-        print("Usage: blenderproc debug debug_batch_annotation.py <tools_dir> <output_dir>")
+        print("Usage: blenderproc debug tool_annotator.py <tools_dir> <output_dir> [skeleton_file]")
+        print("  tools_dir     : Directory containing surgical tool .obj files")
+        print("  output_dir    : Directory to save annotations")
+        print("  skeleton_file : Optional path to tool_skeletons.json file")
+        print("                  (default: uses tool_skeletons.json from script directory)")
         return
 
     tools_dir = sys.argv[1]
     output_dir = sys.argv[2]
+    skeleton_file = sys.argv[3] if len(sys.argv) > 3 else None
 
     # Validate input directory
     if not os.path.exists(tools_dir):
-        print(f"❌ Tools directory not found: {tools_dir}")
+        print(f"Error: Tools directory not found: {tools_dir}")
         return
 
-    print("🚀 BlenderProc Debug Batch Annotation System")
+    # Validate skeleton file if provided
+    if skeleton_file and not os.path.exists(skeleton_file):
+        print(f"Error: Skeleton file not found: {skeleton_file}")
+        return
+
+    print("BlenderProc Debug Batch Annotation System")
     print("=" * 50)
 
     # Create batch annotator
-    annotator = BatchAnnotator(tools_dir, output_dir)
+    annotator = BatchAnnotator(tools_dir, output_dir, skeleton_file)
 
     # Load first tool
     if annotator.load_current_tool():
-        print("\n🎯 Ready for annotation!")
+        print("\nReady for annotation!")
     else:
-        print("❌ No tools to annotate")
+        print("Error: No tools to annotate")
 
 
 def finish_tool():
