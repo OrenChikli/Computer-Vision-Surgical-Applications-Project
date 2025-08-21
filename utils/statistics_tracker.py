@@ -4,11 +4,14 @@ Collects comprehensive statistics about generated images and dataset properties.
 """
 
 import json
+import logging
 import time
 import numpy as np
 import bpy
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class StatisticsTracker:
@@ -49,7 +52,7 @@ class StatisticsTracker:
             'workspace_setups': 0
         }
         
-        print(f"Statistics tracking {'enabled' if enabled else 'disabled'}")
+        logger.info(f"Statistics tracking {'enabled' if enabled else 'disabled'}")
     
     def collect_workspace_statistics(self, tool_manager, workspace_idx: int, 
                                    hdri_file: Optional[str] = None) -> Dict:
@@ -272,7 +275,7 @@ class StatisticsTracker:
                     visible_objects.append(visible_obj)
             
         except Exception as e:
-            print(f"Warning: Could not analyze visible objects for frame {frame_idx}: {e}")
+            logger.warning(f"Could not analyze visible objects for frame {frame_idx}: {e}")
             # Fallback: return empty list so we get accurate "0 objects visible" stats
             
         return visible_objects
@@ -359,7 +362,7 @@ class StatisticsTracker:
             Tuple of (detailed_saved, summary_saved) booleans
         """
         if not self.enabled:
-            print("Statistics tracking disabled - no files saved")
+            logger.info("Statistics tracking disabled - no files saved")
             return False, False
         
         detailed_saved = self._save_detailed_statistics()
@@ -386,11 +389,11 @@ class StatisticsTracker:
             with open(output_file, 'w') as f:
                 json.dump(detailed_stats, f, indent=2, default=str)
             
-            print(f"✅ Detailed statistics saved to: {output_file}")
+            logger.info(f"Detailed statistics saved to: {output_file}")
             return True
         
         except Exception as e:
-            print(f"❌ Failed to save detailed statistics: {e}")
+            logger.error(f"Failed to save detailed statistics: {e}")
             return False
     
     def _save_summary_statistics(self) -> bool:
@@ -537,9 +540,9 @@ Generated on {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(summary_text)
             
-            print(f"✅ Summary statistics saved to: {output_file}")
+            logger.info(f"Summary statistics saved to: {output_file}")
             return True
         
         except Exception as e:
-            print(f"❌ Failed to save summary statistics: {e}")
+            logger.error(f"Failed to save summary statistics: {e}")
             return False

@@ -1,10 +1,13 @@
 import blenderproc as bproc
 import json
+import logging
 import os
 import glob
 import random
 import numpy as np
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 from .keypoint_extractor import KeypointExtractor
 from utils.material_utils import setup_tool_material
@@ -35,21 +38,21 @@ class ToolManager:
         """Load all required data with comprehensive error checking."""
         try:
             if not self._load_skeleton_data():
-                print("Warning: No skeleton data loaded")
+                logger.warning("No skeleton data loaded")
 
             if not self._load_annotations():
-                print("Error: No annotations loaded")
+                logger.error("No annotations loaded")
                 return False
 
             if not self._load_tools():
-                print("Error: No tools loaded")
+                logger.error("No tools loaded")
                 return False
 
             self.keypoint_extractor = KeypointExtractor(self, self.config)
             return True
 
         except Exception as e:
-            print(f"Error loading data: {e}")
+            logger.error(f"Error loading data: {e}")
             return False
 
     def _load_skeleton_data(self) -> bool:
@@ -98,10 +101,10 @@ class ToolManager:
                     "flip_pairs_indices": flip_pairs_indices  # Precomputed flip pairs (indices)
                 }
 
-            print(f"Loaded skeleton data for {len(self.skeletons)} tool types")
+            logger.info(f"Loaded skeleton data for {len(self.skeletons)} tool types")
             return True
         except Exception as e:
-            print(f"Error loading skeleton data: {e}")
+            logger.error(f"Error loading skeleton data: {e}")
             return False
 
     def _load_annotations(self) -> bool:
@@ -109,7 +112,7 @@ class ToolManager:
         annotation_files = glob.glob(os.path.join(self.annotations_path, "*_keypoints.json"))
 
         if not annotation_files:
-            print("No annotation files found")
+            logger.error("No annotation files found")
             return False
 
         loaded_count = 0
@@ -124,12 +127,12 @@ class ToolManager:
                     self.tool_types[tool_name] = data['tool_type']
                     loaded_count += 1
                 else:
-                    print(f"Warning: Invalid annotation format in {annotation_file}")
+                    logger.warning(f"Invalid annotation format in {annotation_file}")
 
             except Exception as e:
-                print(f"Error loading {annotation_file}: {e}")
+                logger.error(f"Error loading {annotation_file}: {e}")
 
-        print(f"Loaded {loaded_count} annotations")
+        logger.info(f"Loaded {loaded_count} annotations")
         return loaded_count > 0
 
     def _load_tools(self) -> bool:
@@ -141,17 +144,17 @@ class ToolManager:
             obj_file = annotation_data.get('obj_file')
 
             if not obj_file:
-                print(f"Warning: No obj_file specified for {tool_name}")
+                logger.warning(f"No obj_file specified for {tool_name}")
                 continue
 
             if not os.path.exists(obj_file):
-                print(f"Warning: .obj file not found for {tool_name}: {obj_file}")
+                logger.warning(f".obj file not found for {tool_name}: {obj_file}")
                 continue
 
             try:
                 objs = bproc.loader.load_obj(obj_file)
                 if not objs:
-                    print(f"Warning: No objects loaded from {obj_file}")
+                    logger.warning(f"No objects loaded from {obj_file}")
                     continue
 
                 obj = objs[0]
@@ -165,9 +168,9 @@ class ToolManager:
                 loaded_count += 1
 
             except Exception as e:
-                print(f"Error loading {obj_file}: {e}")
+                logger.error(f"Error loading {obj_file}: {e}")
 
-        print(f"Loaded {loaded_count} tools into scene")
+        logger.info(f"Loaded {loaded_count} tools into scene")
         return loaded_count > 0
 
     def _create_category_mapping(self) -> None:
@@ -184,7 +187,7 @@ class ToolManager:
             for tool_name, tool_type in self.tool_types.items()
         }
 
-        print(f"Created {len(self.type_to_category_id)} tool type categories")
+        logger.info(f"Created {len(self.type_to_category_id)} tool type categories")
 
     def get_standard_keypoints_for_type(self, tool_type: str) -> List[str]:
         """Get standardized keypoint names for a tool type."""
@@ -300,7 +303,7 @@ class ToolManager:
         if not len(self.loaded_tools):
             return
 
-        print(f"Setting up surgical workspace with {len(self.loaded_tools)} tools")
+        logger.info(f"Setting up surgical workspace with {len(self.loaded_tools)} tools")
 
         # Generate positions with collision avoidance
         positions = generate_random_positions(
@@ -330,8 +333,8 @@ class ToolManager:
             # Setup materials
             setup_tool_material(obj, self.config)
 
-            print(f"  {tool_name}: pos=({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}), "
-                  f"rot=({rotation_x:.2f}, {rotation_y:.2f}, {rotation_z:.2f}), scale={scale_factor:.2f}")
+            logger.info(f"  {tool_name}: pos=({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}), "
+                        f"rot=({rotation_x:.2f}, {rotation_y:.2f}, {rotation_z:.2f}), scale={scale_factor:.2f}")
 
     def create_occlusion_blobs(self):
         """Create random occlusion blobs at specified keypoints."""
@@ -381,7 +384,7 @@ class ToolManager:
                 blob = self._create_blob(world_point[:3], blob_radius)
                 self.occlusion_objects.append(blob)
 
-                print(f"  Created occlusion blob at {kp_name} for {tool_name}")
+                logger.info(f"  Created occlusion blob at {kp_name} for {tool_name}")
 
     def _create_blob(self, position, radius):
         """Create a single occlusion blob (sphere) simulating medical gloves."""
@@ -405,6 +408,6 @@ class ToolManager:
             sphere_obj.add_material(material)
 
         except Exception as e:
-            print(f"Warning: Failed to setup material for medical glove: {e}")
+            logger.warning(f"Failed to setup material for medical glove: {e}")
 
         return sphere_obj

@@ -1,7 +1,10 @@
+import logging
 import random
 import numpy as np
 from colorsys import hsv_to_rgb
 import bpy
+
+logger = logging.getLogger(__name__)
 
 
 def setup_tool_material(obj, config: dict):
@@ -30,4 +33,4 @@ def setup_tool_material(obj, config: dict):
             mat.set_principled_shader_value("Metallic", config['material_metallic_value'])
 
     except Exception as e:
-        print(f"Warning: Failed to setup material for {obj.get_name()}: {e}")
+        logger.warning(f"Failed to setup material for {obj.get_name()}: {e}")

@@ -1,7 +1,10 @@
 import argparse
 import cv2
 import torch
+import logging
 from ultralytics import YOLO
+
+logger = logging.getLogger(__name__)
 
 def get_default_device():
     """
@@ -45,10 +48,13 @@ def parse_args():
 
 def main():
     args = parse_args()
+    
+    # Setup logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     # Load model
     device = get_default_device()
-    print(f"Loading model from '{args.model_path}' on device '{device}'")
+    logger.info(f"Loading model from '{args.model_path}' on device '{device}'")
     model = YOLO(args.model_path).eval().to(device)
 
     # Read image
@@ -58,7 +64,7 @@ def main():
     image = cv2.resize(image, (args.width, args.height))
 
     # Run inference
-    print(f"Running inference with confidence >= {args.conf_thresh}")
+    logger.info(f"Running inference with confidence >= {args.conf_thresh}")
     results = model(image, conf=args.conf_thresh, verbose=False)[0]
 
     # Draw detections
@@ -67,7 +73,7 @@ def main():
     # Show result
     window_name = "YOLO Inference"
     cv2.imshow(window_name, annotated)
-    print("Press any key in the image window to exit")
+    logger.info("Press any key in the image window to exit")
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

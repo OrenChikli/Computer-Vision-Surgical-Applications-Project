@@ -1,10 +1,13 @@
 import cv2
 import json
+import logging
 import numpy as np
 import os
 import glob
 from pathlib import Path
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 
 def get_keypoint_colors(num_keypoints):
@@ -36,7 +39,7 @@ def visualize_keypoints_on_images(output_dir: Path, coco_file: Path, config: dic
 
     # Load COCO annotations
     if not coco_file.exists():
-        print("No COCO annotations file found for visualization")
+        logger.warning("No COCO annotations file found for visualization")
         return
 
     with open(coco_file, 'r') as f:
@@ -55,7 +58,7 @@ def visualize_keypoints_on_images(output_dir: Path, coco_file: Path, config: dic
     # Get category info
     categories = {cat["id"]: cat for cat in coco_data.get("categories", [])}
     skeleton_color = (255, 255, 255)  # White color for all skeleton lines
-    print(f"Visualizing keypoints for {len(coco_data.get('images', []))} images...")
+    logger.info(f"Visualizing keypoints for {len(coco_data.get('images', []))} images...")
 
     # Process each image
     for image_info in coco_data.get("images", []):
@@ -109,7 +112,7 @@ def visualize_keypoints_on_images(output_dir: Path, coco_file: Path, config: dic
         viz_path = viz_dir / viz_filename
         cv2.imwrite(str(viz_path), img)
 
-    print(f"Keypoint visualizations saved to: {viz_dir}")
+    logger.info(f"Keypoint visualizations saved to: {viz_dir}")
 
 
 def get_hdri_files(hdri_path: str) -> List[str]:
@@ -129,5 +132,5 @@ def get_hdri_files(hdri_path: str) -> List[str]:
 
         return sorted(hdr_files)
     except Exception as e:
-        print(f"Warning: Error scanning HDRI directory: {e}")
+        logger.warning(f"Error scanning HDRI directory: {e}")
         return []

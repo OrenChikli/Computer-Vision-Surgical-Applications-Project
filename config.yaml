@@ -134,16 +134,16 @@ paths:
   synthetic_data_path: "D:/Vision_project_data/datasets/dataset_1920_new/yolo_dataset" #"../datasets/yolo_dataset"
 
   # Path to real surgical video for domain adaptation
-  real_video_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/vids_tune/surg_1.mp4" #"../data/real_videos/surgical_video.mp4"
+  real_video_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/vids_tune/4_2_24_B_2.mp4" #surg_1.mp4" #"../data/real_videos/surgical_video.mp4"
 
   # Output directory for domain adaptation results
-  output_dir: "D:/Vision_project_data/domain_adaptation/TEST" #"../output/domain_adaptation_results"
+  output_dir: "D:/Vision_project_data/domain_adaptation/dataset_1920_new_final_test" #"../output/domain_adaptation_results"
 
 
 # Video annotation settings
 video_annotation:
-  enabled: true                   # Set to false to skip video creation (faster)
-  confidence_threshold: 0.5       # Confidence threshold for video annotations
+  enabled: False                   # Set to false to skip video creation (faster)
+  confidence_threshold: 0.8       # Confidence threshold for video annotations
   save_format: "mp4"              # Video format
   progress_logging: true          # Log progress during video creation
 

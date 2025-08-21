@@ -1,6 +1,9 @@
 import blenderproc as bproc
 import bpy
+import logging
 import random
+
+logger = logging.getLogger(__name__)
 
 def setup_lighting(config: dict):
     """Setup realistic surgical lighting with improved parameters."""
@@ -82,4 +85,4 @@ def setup_lighting(config: dict):
             ]
             bg_node.inputs[0].default_value = ambient_color
     except Exception as e:
-        print(f"Warning: Could not set ambient lighting: {e}")
+        logger.warning(f"Could not set ambient lighting: {e}")

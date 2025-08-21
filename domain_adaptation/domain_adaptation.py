@@ -8,6 +8,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.yaml_utils import load_yaml, save_yaml
+from utils.logger_utils import setup_logger
 import shutil
 import numpy as np
 import logging
@@ -23,6 +24,8 @@ from typing import Dict, List, Optional, Tuple, Any
 import argparse
 from dataclasses import dataclass
 
+import logging
+logger = logging.getLogger(__name__)
 
 # Add parent directory to Python path for VideoAnnotator import
 project_root = Path(__file__).parent.parent
@@ -32,9 +35,9 @@ if str(project_root) not in sys.path:
 try:
     from video import VideoAnnotator
 except ImportError as e:
-    print(f"Failed to import VideoAnnotator: {e}")
-    print(f"   Make sure you're running from the project root directory")
-    print(f"   Project root: {project_root}")
+    logger.error(f"Failed to import VideoAnnotator: {e}")
+    logger.error(f"   Make sure you're running from the project root directory")
+    logger.error(f"   Project root: {project_root}")
     raise
 
 
@@ -55,10 +58,10 @@ def _load_config(config_path: str) -> Dict[str, Any]:
     try:
         return load_yaml(config_path)
     except FileNotFoundError:
-        logging.error(f"Configuration file not found: {config_path}")
+        logger.error(f"Configuration file not found: {config_path}")
         raise
     except Exception as e:
-        logging.error(f"Error parsing configuration file: {e}")
+        logger.error(f"Error parsing configuration file: {e}")
         raise
 
 
@@ -94,17 +97,16 @@ class PseudoLabelExtractor:
     def __init__(self, model: YOLO, config: ConfigManager):
         self.model = model
         self.config = config
-        self.logger = logging.getLogger(self.__class__.__name__)
 
     def extract_from_video(self, video_path: str) -> List[PseudoLabel]:
         """Extract high-confidence pseudo-labels from real video using tracking - MEMORY FIXED"""
-        self.logger.info(f"Extracting pseudo-labels from: {video_path}")
+        logger.info(f"Extracting pseudo-labels from: {video_path}")
 
         results = self._run_tracking(video_path)
         track_history = self._process_tracking_results(results, video_path)
         pseudo_labels = self._create_pseudo_labels(track_history, video_path)
 
-        self.logger.info(f"Extracted {len(pseudo_labels)} high-confidence pseudo-labels")
+        logger.info(f"Extracted {len(pseudo_labels)} high-confidence pseudo-labels")
         self._cleanup_memory()
         return pseudo_labels
 
@@ -123,8 +125,8 @@ class PseudoLabelExtractor:
             'verbose': self.config.get('tracking.verbose')
         }
         
-        self.logger.info(f"Tracking with confidence threshold: {tracking_conf}")
-        self.logger.info(f"Pseudo-labeling will filter to: {self.config.get('pseudo_labeling.confidence_threshold')}")
+        logger.info(f"Tracking with confidence threshold: {tracking_conf}")
+        logger.info(f"Pseudo-labeling will filter to: {self.config.get('pseudo_labeling.confidence_threshold')}")
         
         return self.model.track(**tracking_params)
 
@@ -207,13 +209,23 @@ class PseudoLabelExtractor:
         pseudo_labels = []
         min_track_length = self.config.get('pseudo_labeling.track_min_length')
         confidence_threshold = self.config.get('pseudo_labeling.confidence_threshold')
+        
+        logger.info(f"Processing {len(track_history)} tracks with min_length={min_track_length}, conf_thresh={confidence_threshold}")
+        
+        valid_tracks = 0
+        high_conf_tracks = 0
 
         for track_id, detections in track_history.items():
             if len(detections) >= min_track_length:
+                valid_tracks += 1
                 mid_idx = len(detections) // 2
                 best_detection = detections[mid_idx]
+                
+                if valid_tracks <= 5:  # Log first 5 tracks for debugging
+                    logger.info(f"Track {track_id}: {len(detections)} detections, best conf={best_detection['confidence']:.3f}")
 
                 if best_detection['confidence'] >= confidence_threshold:
+                    high_conf_tracks += 1
                     pseudo_label = PseudoLabel(
                         frame_id=best_detection['frame_id'],
                         video_path=best_detection['video_path'],
@@ -224,6 +236,8 @@ class PseudoLabelExtractor:
                         frame_shape=best_detection['frame_shape']
                     )
                     pseudo_labels.append(pseudo_label)
+        
+        logger.info(f"Tracks: {len(track_history)} total, {valid_tracks} long enough, {high_conf_tracks} high confidence")
 
         max_labels = self.config.get('pseudo_labeling.max_pseudo_labels')
         if len(pseudo_labels) > max_labels:
@@ -245,13 +259,12 @@ class DatasetManager:
     def __init__(self, config: ConfigManager, output_dir: Path):
         self.config = config
         self.output_dir = output_dir
-        self.logger = logging.getLogger(self.__class__.__name__)
         # Only create the main output directory, not subdirectories
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def save_pseudo_labels(self, pseudo_labels: List[PseudoLabel]):
         """Save pseudo-labeled data in YOLO format - MEMORY FIXED"""
-        self.logger.info("Saving pseudo-labeled data...")
+        logger.info("Saving pseudo-labeled data...")
 
         pseudo_images_dir = self.output_dir / self.config.get('output.pseudo_dir') / self.config.get('output.images_dir')
         pseudo_labels_dir = self.output_dir / self.config.get('output.pseudo_dir') / self.config.get('output.labels_dir')
@@ -264,7 +277,7 @@ class DatasetManager:
             frame = self._load_frame_from_video(label_data.video_path, label_data.frame_id)
 
             if frame is None:
-                self.logger.warning(f"Could not load frame {label_data.frame_id} from video")
+                logger.warning(f"Could not load frame {label_data.frame_id} from video")
                 continue
 
             img_filename = f"pseudo_{i:06d}.jpg"
@@ -319,10 +332,10 @@ class DatasetManager:
     def copy_synthetic_data(self, synthetic_data_path: Path):
         """Copy synthetic data to combined dataset"""
         if not synthetic_data_path.exists():
-            self.logger.warning(f"Synthetic data path does not exist: {synthetic_data_path}")
+            logger.warning(f"Synthetic data path does not exist: {synthetic_data_path}")
             return
 
-        self.logger.info("Copying synthetic data...")
+        logger.info("Copying synthetic data...")
         synthetic_images = self._find_files(synthetic_data_path, "images", self.config.get('data.image_extensions'))
         synthetic_labels = self._find_files(synthetic_data_path, "labels", [self.config.get('data.label_extension')])
 
@@ -332,7 +345,7 @@ class DatasetManager:
         images_dir.mkdir(parents=True, exist_ok=True)
         labels_dir.mkdir(parents=True, exist_ok=True)
 
-        self.logger.info(f"Found {len(synthetic_images)} synthetic images and {len(synthetic_labels)} labels")
+        logger.info(f"Found {len(synthetic_images)} synthetic images and {len(synthetic_labels)} labels")
         self._copy_files(synthetic_images, images_dir)
         self._copy_files(synthetic_labels, labels_dir)
 
@@ -359,11 +372,11 @@ class DatasetManager:
             try:
                 shutil.copy2(file_path, destination / file_path.name)
             except Exception as e:
-                self.logger.warning(f"Could not copy {file_path}: {e}")
+                logger.warning(f"Could not copy {file_path}: {e}")
 
     def copy_pseudo_labeled_data(self):
         """Copy pseudo-labeled data to main dataset"""
-        self.logger.info("Copying pseudo-labeled data...")
+        logger.info("Copying pseudo-labeled data...")
         pseudo_dir = self.output_dir / self.config.get('output.pseudo_dir')
         pseudo_images = list((pseudo_dir / self.config.get('output.images_dir')).glob("*"))
         pseudo_labels = list((pseudo_dir / self.config.get('output.labels_dir')).glob("*"))
@@ -390,7 +403,7 @@ class DatasetManager:
         yaml_path = self.output_dir / self.config.get('output.dataset_config')
         save_yaml(adapted_config, yaml_path)
 
-        self.logger.info(f"Created dataset config: {yaml_path}")
+        logger.info(f"Created dataset config: {yaml_path}")
         return yaml_path
 
 
@@ -400,8 +413,6 @@ class DomainAdaptation:
     """
 
     def __init__(self, config_path: str):
-        self._setup_logging()
-        self.logger = logging.getLogger(self.__class__.__name__)
 
         # Load configuration
         self.config = ConfigManager(config_path)
@@ -431,14 +442,8 @@ class DomainAdaptation:
         self.pseudo_extractor = PseudoLabelExtractor(self.model, self.config)
         self.dataset_manager = DatasetManager(self.config, self.output_dir)
 
-        self.logger.info("Domain adaptation with video annotation initialized")
+        logger.info("Domain adaptation with video annotation initialized")
 
-    def _setup_logging(self):
-        """Setup logging configuration"""
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
 
     def _validate_paths(self):
         """Validate that required input paths exist and are correct format"""
@@ -456,8 +461,8 @@ class DomainAdaptation:
 
         if missing_paths:
             error_msg = "Missing required input paths:\n" + "\n".join(f"  - {p}" for p in missing_paths)
-            self.logger.error(error_msg)
-            self.logger.error("Please update your domain_adaptation/config.yaml file with correct paths")
+            logger.error(error_msg)
+            logger.error("Please update your domain_adaptation/config.yaml file with correct paths")
             raise FileNotFoundError(error_msg)
 
         # Validate file formats
@@ -474,7 +479,7 @@ class DomainAdaptation:
         video_path = Path(self.real_video_path)
         video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.wmv'}
         if video_path.suffix.lower() not in video_extensions:
-            self.logger.warning(f"Video file extension {video_path.suffix} may not be supported")
+            logger.warning(f"Video file extension {video_path.suffix} may not be supported")
         
         # Test video accessibility
         try:
@@ -490,7 +495,7 @@ class DomainAdaptation:
             if frame_count == 0:
                 raise ValueError(f"Video file appears to be empty: {video_path}")
                 
-            self.logger.info(f"Video validation passed: {frame_count} frames at {fps} FPS")
+            logger.info(f"Video validation passed: {frame_count} frames at {fps} FPS")
             
         except Exception as e:
             raise ValueError(f"Video validation failed: {e}")
@@ -510,9 +515,9 @@ class DomainAdaptation:
                            
         # Check for dataset.yaml
         if not (synthetic_path / 'dataset.yaml').exists():
-            self.logger.warning("dataset.yaml not found in synthetic dataset - will attempt to create one")
+            logger.warning("dataset.yaml not found in synthetic dataset - will attempt to create one")
             
-        self.logger.info("All input validations passed")
+        logger.info("All input validations passed")
         
         # Validate evaluation configuration
         self._validate_evaluation_config()
@@ -520,24 +525,24 @@ class DomainAdaptation:
     def _validate_evaluation_config(self):
         """Validate evaluation configuration settings"""
         if self.run_evaluation:
-            self.logger.info("Automatic evaluation enabled")
+            logger.info("Automatic evaluation enabled")
             
             # Validate sample rate
             if not isinstance(self.evaluation_sample_rate, int) or self.evaluation_sample_rate < 1:
                 raise ValueError(f"evaluation.sample_rate must be a positive integer, got: {self.evaluation_sample_rate}")
             
             if self.evaluation_sample_rate > 50:
-                self.logger.warning(f"High sample_rate ({self.evaluation_sample_rate}) will process very few frames")
+                logger.warning(f"High sample_rate ({self.evaluation_sample_rate}) will process very few frames")
                 
             # Check for RefinementEvaluator availability
             try:
                 from evaluate_refinement import RefinementEvaluator
-                self.logger.info("RefinementEvaluator available for automatic evaluation")
+                logger.info("RefinementEvaluator available for automatic evaluation")
             except ImportError as e:
                 raise ImportError(f"Cannot import RefinementEvaluator for automatic evaluation: {e}")
                 
         else:
-            self.logger.info("Automatic evaluation disabled - use evaluate_refinement.py manually")
+            logger.info("Automatic evaluation disabled - use evaluate_refinement.py manually")
 
     def _get_dataset_config(self) -> Dict[str, Any]:
         """Get dataset configuration from model"""
@@ -572,23 +577,23 @@ class DomainAdaptation:
             Path to annotated video or None if failed
         """
         if not self.enable_video_annotation :
-            self.logger.info("Video annotation disabled")
+            logger.info("Video annotation disabled")
             return None
 
         try:
-            self.logger.info(f"Creating annotated video with {model_name}...")
+            logger.info(f"Creating annotated video with {model_name}...")
 
             # Create video output path
             video_name = Path(self.real_video_path).stem
             output_video_path = output_dir / f"{video_name}_{model_name}_annotated.mp4"
 
             # Create video annotator
-            annotator = VideoAnnotator(model_path, logger=self.logger)
+            annotator = VideoAnnotator(model_path, logger=logger)
 
             # Progress callback
             def progress_callback(frame_idx, total_frames, progress_pct):
                 if frame_idx % 100 == 0:  # Log every 100 frames
-                    self.logger.info(f"   Video annotation progress: {frame_idx}/{total_frames} ({progress_pct:.1f}%)")
+                    logger.info(f"   Video annotation progress: {frame_idx}/{total_frames} ({progress_pct:.1f}%)")
 
             # Annotate video
             stats = annotator.annotate_video(
@@ -600,38 +605,38 @@ class DomainAdaptation:
                 progress_callback=progress_callback
             )
 
-            self.logger.info(f"Video annotation completed:")
-            self.logger.info(f"   Processed {stats['processed_frames']} frames")
-            self.logger.info(f"   Total detections: {stats['total_detections']}")
-            self.logger.info(f"   Avg detections per frame: {stats['avg_detections_per_frame']:.2f}")
-            self.logger.info(f"   Saved to: {output_video_path}")
+            logger.info(f"Video annotation completed:")
+            logger.info(f"   Processed {stats['processed_frames']} frames")
+            logger.info(f"   Total detections: {stats['total_detections']}")
+            logger.info(f"   Avg detections per frame: {stats['avg_detections_per_frame']:.2f}")
+            logger.info(f"   Saved to: {output_video_path}")
 
             return str(output_video_path)
 
         except ImportError as e:
-            self.logger.error(f"Video annotation failed - Missing dependency: {e}")
-            self.logger.error("   Install required packages: pip install opencv-python ultralytics")
+            logger.error(f"Video annotation failed - Missing dependency: {e}")
+            logger.error("   Install required packages: pip install opencv-python ultralytics")
             return None
         except MemoryError:
-            self.logger.error(f"Video annotation failed - Out of memory")
-            self.logger.error("   Try reducing batch_size or enabling CPU inference in config")
+            logger.error(f"Video annotation failed - Out of memory")
+            logger.error("   Try reducing batch_size or enabling CPU inference in config")
             return None
         except Exception as e:
-            self.logger.error(f"Video annotation failed: {e}")
-            self.logger.error(f"   Check video file format and model compatibility")
+            logger.error(f"Video annotation failed: {e}")
+            logger.error(f"   Check video file format and model compatibility")
             return None
 
     def run_domain_adaptation(self, retrain: bool = True) -> Optional[Dict]:
         """
         Complete iterative domain adaptation pipeline with video annotation
         """
-        self.logger.info("Starting domain adaptation with video annotation...")
+        logger.info("Starting domain adaptation with video annotation...")
 
         # Step 0: Create annotated video with original model
         if self.enable_video_annotation:
-            self.logger.info(f"\n{'='*60}")
-            self.logger.info(f"CREATING BASELINE VIDEO ANNOTATION")
-            self.logger.info(f"{'='*60}")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"CREATING BASELINE VIDEO ANNOTATION")
+            logger.info(f"{'='*60}")
 
             baseline_video_path = self._annotate_video_with_model(
                 model_path=self.original_model_path,
@@ -647,16 +652,16 @@ class DomainAdaptation:
         if num_iterations < 1:
             raise ValueError("Number of iterations must be at least 1")
 
-        self.logger.info(f"Running {num_iterations} refinement iteration(s)")
+        logger.info(f"Running {num_iterations} refinement iteration(s)")
 
         iteration_results = []
         current_model_path = self.original_model_path
 
         try:
             for iteration in range(1, num_iterations + 1):
-                self.logger.info(f"\n{'='*60}")
-                self.logger.info(f"Starting Iteration {iteration}/{num_iterations}")
-                self.logger.info(f"{'='*60}")
+                logger.info(f"\n{'='*60}")
+                logger.info(f"Starting Iteration {iteration}/{num_iterations}")
+                logger.info(f"{'='*60}")
 
                 # Create iteration-specific output directory
                 iteration_dir = self.output_dir / f"iteration_{iteration}"
@@ -672,14 +677,14 @@ class DomainAdaptation:
                 )
 
                 if iteration_result is None:
-                    self.logger.warning(f"Iteration {iteration} failed to generate pseudo-labels")
+                    logger.warning(f"Iteration {iteration} failed to generate pseudo-labels")
                     break
 
 
                 if retrain and iteration_result.get('refined_model_path'):
                     refined_model_path = iteration_result['refined_model_path']
                     if Path(refined_model_path).exists():
-                        self.logger.info(f"\nCreating annotated video for iteration {iteration}...")
+                        logger.info(f"\nCreating annotated video for iteration {iteration}...")
 
                         iteration_video_path = self._annotate_video_with_model(
                             model_path=refined_model_path,
@@ -697,9 +702,9 @@ class DomainAdaptation:
                     refined_path = Path(iteration_result['refined_model_path'])
                     if refined_path.exists():
                         current_model_path = str(refined_path)
-                        self.logger.info(f"Updated model path for next iteration: {current_model_path}")
+                        logger.info(f"Updated model path for next iteration: {current_model_path}")
 
-                self.logger.info(f"Iteration {iteration} completed successfully.")
+                logger.info(f"Iteration {iteration} completed successfully.")
 
                 # Save intermediate results
                 if save_intermediate:
@@ -714,14 +719,14 @@ class DomainAdaptation:
 
             self._save_overall_summary(overall_results)
 
-            self.logger.info("Domain adaptation with video annotation completed!")
+            logger.info("Domain adaptation with video annotation completed!")
             self._print_video_summary(overall_results)
 
             # Run automatic evaluation if enabled
             if self.run_evaluation:
-                self.logger.info(f"\n{'='*60}")
-                self.logger.info(f"RUNNING AUTOMATIC EVALUATION")
-                self.logger.info(f"{'='*60}")
+                logger.info(f"\n{'='*60}")
+                logger.info(f"RUNNING AUTOMATIC EVALUATION")
+                logger.info(f"{'='*60}")
                 
                 evaluation_results = self._run_automatic_evaluation(overall_results)
                 if evaluation_results:
@@ -730,13 +735,13 @@ class DomainAdaptation:
             return overall_results
 
         except Exception as e:
-            self.logger.error(f"Domain adaptation failed: {e}")
+            logger.error(f"Domain adaptation failed: {e}")
             raise
 
     def _run_single_iteration(self, iteration: int, model_path: str, iteration_dir: Path,
                              accumulate_previous_data: bool = False, retrain: bool = True) -> Optional[Dict]:
         """Run a single iteration of domain adaptation with improved memory management"""
-        self.logger.info(f"🔧 Iteration {iteration}: Using model {model_path}")
+        logger.info(f"Iteration {iteration}: Using model {model_path}")
 
         # Initialize variables to avoid UnboundLocalError
         current_model = None
@@ -754,16 +759,16 @@ class DomainAdaptation:
             iteration_dataset_manager = DatasetManager(self.config, iteration_dir)
 
         except Exception as e:
-            self.logger.error(f"Failed to load model {model_path}: {e}")
+            logger.error(f"Failed to load model {model_path}: {e}")
             return None
 
         try:
             # Step 1: Extract pseudo-labels
-            self.logger.info(f"🎯 Iteration {iteration}: Extracting pseudo-labels...")
+            logger.info(f"Iteration {iteration}: Extracting pseudo-labels...")
             pseudo_labels = iteration_extractor.extract_from_video(self.real_video_path)
 
             if len(pseudo_labels) == 0:
-                self.logger.warning(f"Iteration {iteration}: No high-confidence pseudo-labels found")
+                logger.warning(f"Iteration {iteration}: No high-confidence pseudo-labels found")
                 return None
 
             # Clean up after extraction
@@ -775,14 +780,14 @@ class DomainAdaptation:
                 torch.cuda.empty_cache()
 
             # Step 2: Save pseudo-labeled data
-            self.logger.info(f"💾 Iteration {iteration}: Saving {len(pseudo_labels)} pseudo-labels...")
+            logger.info(f"Iteration {iteration}: Saving {len(pseudo_labels)} pseudo-labels...")
             iteration_dataset_manager.save_pseudo_labels(pseudo_labels)
 
             del pseudo_labels
             gc.collect()
 
             # Step 3: Create adapted dataset
-            self.logger.info(f"📊 Iteration {iteration}: Creating adapted dataset...")
+            logger.info(f"Iteration {iteration}: Creating adapted dataset...")
             iteration_dataset_manager.copy_synthetic_data(self.synthetic_data_path)
 
             if accumulate_previous_data:
@@ -802,7 +807,7 @@ class DomainAdaptation:
                 'synthetic': total_images - pseudo_count if not accumulate_previous_data else 'mixed'
             }
 
-            self.logger.info(f"📈 Iteration {iteration} dataset: {total_images} images, {pseudo_count} new pseudo-labels")
+            logger.info(f"Iteration {iteration} dataset: {total_images} images, {pseudo_count} new pseudo-labels")
 
             # Clean up before training
             if current_model is not None:
@@ -821,15 +826,15 @@ class DomainAdaptation:
             training_results = None
 
             if retrain:
-                self.logger.info(f"🚀 Iteration {iteration}: Retraining model...")
+                logger.info(f"Iteration {iteration}: Retraining model...")
                 training_results = self._refine_model_for_iteration(iteration, iteration_dir, model_path)
 
                 potential_refined_path = iteration_dir / self.config.get('output.refined_model_dir') / 'weights' / 'best.pt'
                 if potential_refined_path.exists():
                     refined_model_path = str(potential_refined_path)
-                    self.logger.info(f"🎯 Refined model saved: {refined_model_path}")
+                    logger.info(f"Refined model saved: {refined_model_path}")
                 else:
-                    self.logger.warning(f"Refined model not found at expected location: {potential_refined_path}")
+                    logger.warning(f"Refined model not found at expected location: {potential_refined_path}")
                     refined_model_path = None
 
             return {
@@ -844,7 +849,7 @@ class DomainAdaptation:
             }
 
         except Exception as e:
-            self.logger.error(f"❌ Iteration {iteration} failed: {e}")
+            logger.error(f"Iteration {iteration} failed: {e}")
             raise
         finally:
             # Cleanup
@@ -870,7 +875,7 @@ class DomainAdaptation:
     # [Rest of the methods remain the same as before...]
     def _accumulate_previous_data(self, current_iteration: int, current_dir: Path):
         """Accumulate pseudo-labeled data from previous iterations"""
-        self.logger.info(f"📂 Accumulating data from previous iterations...")
+        logger.info(f"Accumulating data from previous iterations...")
 
         current_images_dir = current_dir / self.config.get('output.images_dir')
         current_labels_dir = current_dir / self.config.get('output.labels_dir')
@@ -896,7 +901,7 @@ class DomainAdaptation:
                 accumulated_count += len(prev_images)
 
         if accumulated_count > 0:
-            self.logger.info(f"📚 Accumulated {accumulated_count} samples from {current_iteration-1} previous iteration(s)")
+            logger.info(f"Accumulated {accumulated_count} samples from {current_iteration-1} previous iteration(s)")
 
     def _refine_model_for_iteration(self, iteration: int, iteration_dir: Path, base_model_path: str) -> Any:
         """Retrain model for specific iteration"""
@@ -918,7 +923,7 @@ class DomainAdaptation:
             }
 
             results = refined_model.train(**train_config)
-            self.logger.info(f"🎯 Iteration {iteration}: Model refinement completed!")
+            logger.info(f"Iteration {iteration}: Model refinement completed!")
             return results
 
         finally:
@@ -947,7 +952,7 @@ class DomainAdaptation:
         with open(summary_path, 'w') as f:
             json.dump(summary, f, indent=2, default=str)
 
-        self.logger.info(f"📄 Iteration {iteration} summary saved: {summary_path}")
+        logger.info(f"Iteration {iteration} summary saved: {summary_path}")
 
     def _create_overall_summary(self, iteration_results: List[Dict]) -> Dict:
         """Create overall summary across all iterations"""
@@ -1005,32 +1010,32 @@ class DomainAdaptation:
         with open(summary_path, 'w') as f:
             json.dump(overall_results, f, indent=2, default=str)
 
-        self.logger.info(f"📊 Overall refinement summary saved: {summary_path}")
+        logger.info(f"Overall refinement summary saved: {summary_path}")
 
     def _print_video_summary(self, overall_results: Dict):
         """Print summary of created videos"""
-        print("\n" + "="*80)
-        print("🎬 VIDEO ANNOTATION SUMMARY")
-        print("="*80)
+        logger.info("=" * 80)
+        logger.info("VIDEO ANNOTATION SUMMARY")
+        logger.info("=" * 80)
 
         # Baseline video
         if overall_results.get('baseline_video_path'):
-            print(f"📹 Baseline video: {overall_results['baseline_video_path']}")
+            logger.info(f"Baseline video: {overall_results['baseline_video_path']}")
 
         # Iteration videos
         video_progression = overall_results.get('video_path_progression', [])
         if video_progression:
-            print(f"📹 Iteration videos:")
+            logger.info(f"Iteration videos:")
             for video_info in video_progression:
-                print(f"   • Iteration {video_info['iteration']}: {video_info['video_path']}")
+                logger.info(f"   • Iteration {video_info['iteration']}: {video_info['video_path']}")
 
         # Best iteration video
         best_video = overall_results.get('best_iteration', {}).get('video_path')
         if best_video:
             iteration_num = overall_results['best_iteration']['iteration_number']
-            print(f"🏆 Best performing iteration {iteration_num} video: {best_video}")
+            logger.info(f"Best performing iteration {iteration_num} video: {best_video}")
 
-        print("="*80)
+        logger.info("=" * 80)
 
     def _run_automatic_evaluation(self, overall_results: Dict) -> Optional[Dict]:
         """Run automatic evaluation comparing original vs final refined model"""
@@ -1040,12 +1045,12 @@ class DomainAdaptation:
             # Get final refined model path
             final_model_path = overall_results.get('final_model_path')
             if not final_model_path or not Path(final_model_path).exists():
-                self.logger.error("❌ Final refined model not found for evaluation")
+                logger.error("Final refined model not found for evaluation")
                 return None
                 
-            self.logger.info(f"📊 Comparing original model vs final refined model...")
-            self.logger.info(f"   Original: {self.original_model_path}")
-            self.logger.info(f"   Refined:  {final_model_path}")
+            logger.info(f"Comparing original model vs final refined model...")
+            logger.info(f"   Original: {self.original_model_path}")
+            logger.info(f"   Refined:  {final_model_path}")
             
             # Create evaluation output directory
             eval_output_dir = self.output_dir / "automatic_evaluation_results"
@@ -1058,7 +1063,7 @@ class DomainAdaptation:
             )
             
             # Run evaluation (no video creation - domain adaptation already creates videos)
-            self.logger.info(f"📹 Processing video for evaluation metrics...")
+            logger.info(f"Processing video for evaluation metrics...")
             evaluation_results = evaluator.evaluate_on_video(
                 video_path=self.real_video_path,
                 output_dir=str(eval_output_dir),
@@ -1075,8 +1080,8 @@ class DomainAdaptation:
                 'output_dir': str(eval_output_dir)
             }
             
-            self.logger.info("✅ Automatic evaluation completed!")
-            self.logger.info(f"   📊 Evaluation results saved to: {eval_output_dir}")
+            logger.info("Automatic evaluation completed!")
+            logger.info(f"   Evaluation results saved to: {eval_output_dir}")
             
             # Print quick summary
             self._print_evaluation_summary(evaluation_results)
@@ -1084,12 +1089,12 @@ class DomainAdaptation:
             return evaluation_results
             
         except ImportError as e:
-            self.logger.error(f"❌ Cannot run automatic evaluation - import failed: {e}")
+            logger.error(f"Cannot run automatic evaluation - import failed: {e}")
             return None
         except Exception as e:
-            self.logger.error(f"❌ Automatic evaluation failed: {e}")
-            self.logger.error("   You can run evaluation manually later with:")
-            self.logger.error(f"   python domain_adaptation/evaluate_refinement.py domain_adaptation/config.yaml")
+            logger.error(f"Automatic evaluation failed: {e}")
+            logger.error("   You can run evaluation manually later with:")
+            logger.error(f"   python domain_adaptation/evaluate_refinement.py domain_adaptation/config.yaml")
             return None
             
     def _print_evaluation_summary(self, evaluation_results: Dict):
@@ -1100,21 +1105,21 @@ class DomainAdaptation:
             refined_stats = summary.get('refined_model', {}).get('stats', {})
             improvements = summary.get('improvements', {})
             
-            print(f"\n📊 AUTOMATIC EVALUATION SUMMARY:")
-            print(f"   Original model avg confidence: {original_stats.get('avg_confidence', 0):.3f}")
-            print(f"   Refined model avg confidence:  {refined_stats.get('avg_confidence', 0):.3f}")
-            print(f"   Confidence improvement:        {improvements.get('avg_confidence_improvement', 0):+.3f}")
+            logger.info(f"AUTOMATIC EVALUATION SUMMARY:")
+            logger.info(f"   Original model avg confidence: {original_stats.get('avg_confidence', 0):.3f}")
+            logger.info(f"   Refined model avg confidence:  {refined_stats.get('avg_confidence', 0):.3f}")
+            logger.info(f"   Confidence improvement:        {improvements.get('avg_confidence_improvement', 0):+.3f}")
             
             assessment = summary.get('evaluation_assessment', {}).get('overall_improvement', 'unknown')
             if assessment == 'significant':
-                print(f"   ✅ Significant improvement achieved!")
+                logger.info(f"   Significant improvement achieved!")
             elif assessment == 'moderate':
-                print(f"   🟡 Moderate improvement achieved")
+                logger.info(f"   Moderate improvement achieved")
             else:
-                print(f"   🔴 Limited improvement observed")
+                logger.warning(f"   Limited improvement observed")
                 
         except Exception as e:
-            self.logger.warning(f"Could not print evaluation summary: {e}")
+            logger.warning(f"Could not print evaluation summary: {e}")
 
 
 def main():
@@ -1125,29 +1130,33 @@ def main():
     args = parser.parse_args()
 
     try:
+        # Load config and setup logging
+        config = load_yaml(args.config)
+        setup_logger(__name__, config)
+        
         # Create domain adaptation instance
         da = DomainAdaptation(config_path=args.config)
 
         # Disable video annotation if requested
         if args.skip_videos:
             da.enable_video_annotation = False
-            print("🎬 Video annotation disabled")
+            logger.info("Video annotation disabled")
 
         # Run domain adaptation
         results = da.run_domain_adaptation(retrain=True)
 
         if results:
-            print(f"\n🎯 Domain adaptation completed!")
+            logger.info(f"Domain adaptation completed!")
             if results.get('final_model_path'):
-                print(f"   🤖 Final model: {results['final_model_path']}")
+                logger.info(f"   Final model: {results['final_model_path']}")
             if results.get('final_video_path'):
-                print(f"   🎬 Final video: {results['final_video_path']}")
+                logger.info(f"   Final video: {results['final_video_path']}")
 
     except FileNotFoundError as e:
-        print(f"❌ Configuration or input file not found: {e}")
+        logger.error(f"Configuration or input file not found: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Domain adaptation failed: {e}")
+        logger.error(f"Domain adaptation failed: {e}")
         sys.exit(1)
 
 

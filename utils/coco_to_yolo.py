@@ -12,11 +12,14 @@ This script converts COCO annotations (including keypoints) to YOLO format:
 
 import json
 import argparse
+import logging
 import shutil
 import random
 from pathlib import Path
 from typing import Dict, List, Tuple
 from yaml_utils import save_yaml
+
+logger = logging.getLogger(__name__)
 
 
 class COCOToYOLOConverter:
@@ -58,7 +61,7 @@ class COCOToYOLOConverter:
 
     def _load_coco_json(self) -> Dict:
         """Automatically find and load COCO JSON file from dataset directory."""
-        print(f"🔍 Searching for COCO JSON file in: {self.dataset_path}")
+        logger.info(f"Searching for COCO JSON file in: {self.dataset_path}")
 
         # Find JSON files
         json_files = list(self.dataset_path.glob("*.json"))
@@ -75,13 +78,13 @@ class COCOToYOLOConverter:
         if not required_keys.issubset(data.keys()):
             raise ValueError(f"Invalid COCO format in {json_file.name}. Missing keys: {required_keys - data.keys()}")
 
-        print(f"✅ Found COCO format file: {json_file.name}")
+        logger.info(f"Found COCO format file: {json_file.name}")
         return data
 
 
     def _generate_unified_keypoints(self) -> List[str]:
         """Generate unified keypoint schema across all categories."""
-        print("🛠️ Creating unified skeleton for all tool types...")
+        logger.info("Creating unified skeleton for all tool types...")
 
         # Collect unique keypoints using set comprehension
         all_keypoints = {
@@ -90,12 +93,12 @@ class COCOToYOLOConverter:
         }
 
         keypoint_list = sorted(all_keypoints)  # Sort for consistency
-        print(f"  - Found {len(keypoint_list)} unique keypoints across all categories")
+        logger.info(f"  - Found {len(keypoint_list)} unique keypoints across all categories")
         return keypoint_list
 
     def _generate_flip_idx(self) -> List[int]:
         """Generate flip_idx array for keypoint augmentation from COCO categories."""
-        print("🔄 Generating flip_idx for keypoint augmentation...")
+        logger.info("Generating flip_idx for keypoint augmentation...")
 
         num_keypoints = len(self.all_keypoint_names)
         flip_idx = list(range(num_keypoints))  # Default: each keypoint maps to itself
@@ -130,18 +133,18 @@ class COCOToYOLOConverter:
 
         # Apply flip mappings from COCO categories
         if coco_pairs_found > 0:
-            print(f"  - Reading flip_pairs from COCO categories")
+            logger.info(f"  - Reading flip_pairs from COCO categories")
             for idx1, idx2 in all_flip_pairs_indices:
                 flip_idx[idx1] = idx2
                 flip_idx[idx2] = idx1
                 kpt1_name = self.all_keypoint_names[idx1]
                 kpt2_name = self.all_keypoint_names[idx2]
-                print(f"  - Mapped '{kpt1_name}' (idx {idx1}) ↔ '{kpt2_name}' (idx {idx2})")
+                logger.info(f"  - Mapped '{kpt1_name}' (idx {idx1}) <-> '{kpt2_name}' (idx {idx2})")
         else:
-            print("  - No flip_pairs found in COCO categories, using default flip_idx")
+            logger.info("  - No flip_pairs found in COCO categories, using default flip_idx")
 
-        print(f"  - Applied {coco_pairs_found} flip pairs")
-        print(f"  - Generated flip_idx: {flip_idx}")
+        logger.info(f"  - Applied {coco_pairs_found} flip pairs")
+        logger.info(f"  - Generated flip_idx: {flip_idx}")
         return flip_idx
 
     def setup_directories(self):
@@ -158,7 +161,7 @@ class COCOToYOLOConverter:
         for dir_path in dirs:
             dir_path.mkdir(parents=True, exist_ok=True)
 
-        print(f"✅ Created YOLO directory structure in: {self.output_dir}")
+        logger.info(f"Created YOLO directory structure in: {self.output_dir}")
 
     def convert_bbox_to_yolo(self, bbox: List[float], img_width: int, img_height: int) -> List[float]:
         """Convert COCO bbox to YOLO format (normalized center coordinates)."""
@@ -206,7 +209,7 @@ class COCOToYOLOConverter:
 
     def process_annotations(self, split: str, split_ratio: float, test_ratio: float):
         """Process annotations for a specific split."""
-        print(f"📝 Processing {split} split...")
+        logger.info(f"Processing {split} split...")
 
         # Split images into train/val/test
         all_images = list(self.images.values())
@@ -228,7 +231,7 @@ class COCOToYOLOConverter:
             if self._process_single_image(img_info, split):
                 processed_count += 1
 
-        print(f"✅ Processed {processed_count} images for {split} split")
+        logger.info(f"Processed {processed_count} images for {split} split")
 
     def _process_single_image(self, img_info: Dict, split: str) -> bool:
         """Process a single image and its annotations."""
@@ -246,7 +249,7 @@ class COCOToYOLOConverter:
 
         # Copy image
         if not src_img_path.exists():
-            print(f"⚠️  Warning: Image not found: {src_img_path}")
+            logger.warning(f"Warning: Image not found: {src_img_path}")
             return False
 
         shutil.copy2(src_img_path, dst_img_path)
@@ -338,20 +341,20 @@ class COCOToYOLOConverter:
         yaml_path = self.output_dir / "dataset.yaml"
         save_yaml(yaml_content, yaml_path, sort_keys=False)
 
-        print(f"📄 Created dataset.yaml: {yaml_path}")
-        print(f"  - Keypoints: {len(self.all_keypoint_names)}")
-        print(f"  - Flip indices: {self.flip_idx}")
+        logger.info(f"Created dataset.yaml: {yaml_path}")
+        logger.info(f"  - Keypoints: {len(self.all_keypoint_names)}")
+        logger.info(f"  - Flip indices: {self.flip_idx}")
 
     def convert(self, split_ratio: float = 0.8, test_ratio: float = 0.1):
         """Convert complete dataset."""
-        print("🚀 Starting COCO to YOLO conversion...")
-        print(f"Dataset path: {self.dataset_path}")
-        print(f"Output directory: {self.output_dir}")
-        print(f"Train/Val split ratio: {split_ratio}")
-        print(f"Test ratio: {test_ratio}")
-        print(f"Categories: {[cat['name'] for cat in self.categories.values()]}")
-        print(f"Unified keypoints: {self.all_keypoint_names}")
-        print("-" * 50)
+        logger.info("Starting COCO to YOLO conversion...")
+        logger.info(f"Dataset path: {self.dataset_path}")
+        logger.info(f"Output directory: {self.output_dir}")
+        logger.info(f"Train/Val split ratio: {split_ratio}")
+        logger.info(f"Test ratio: {test_ratio}")
+        logger.info(f"Categories: {[cat['name'] for cat in self.categories.values()]}")
+        logger.info(f"Unified keypoints: {self.all_keypoint_names}")
+        logger.info("-" * 50)
 
         # Process splits
         self.process_annotations("train", split_ratio, test_ratio)
@@ -362,10 +365,10 @@ class COCOToYOLOConverter:
         self.create_dataset_yaml()
         self.print_summary()
 
-        print("\n🎉 Conversion completed successfully!")
-        print(f"YOLO dataset saved to: {self.output_dir}")
-        print(f"Use dataset.yaml for training with ultralytics YOLO")
-        print(f"Generated flip_idx: {self.flip_idx}")
+        logger.info("\nConversion completed successfully!")
+        logger.info(f"YOLO dataset saved to: {self.output_dir}")
+        logger.info(f"Use dataset.yaml for training with ultralytics YOLO")
+        logger.info(f"Generated flip_idx: {self.flip_idx}")
 
     def print_summary(self):
         """Print conversion summary."""
@@ -387,35 +390,35 @@ class COCOToYOLOConverter:
         val_labels = count_files(val_labels_dir, ['.txt'])
         test_labels = count_files(test_labels_dir, ['.txt'])
 
-        print("\n" + "=" * 50)
-        print("CONVERSION SUMMARY")
-        print("=" * 50)
-        print(f"Total categories: {len(self.categories)}")
-        print(f"Categories: {[cat['name'] for cat in self.categories.values()]}")
-        print(f"Unified keypoints: {len(self.all_keypoint_names)}")
-        print(f"Keypoint names: {self.all_keypoint_names}")
-        print(f"Flip indices: {self.flip_idx}")
-        print(f"Training images: {train_images}")
-        print(f"Training labels: {train_labels}")
-        print(f"Validation images: {val_images}")
-        print(f"Validation labels: {val_labels}")
-        print(f"Test images: {test_images}")
-        print(f"Test labels: {test_labels}")
-        print(f"Total images: {train_images + val_images + test_images}")
-        print("=" * 50)
+        logger.info("=" * 50)
+        logger.info("CONVERSION SUMMARY")
+        logger.info("=" * 50)
+        logger.info(f"Total categories: {len(self.categories)}")
+        logger.info(f"Categories: {[cat['name'] for cat in self.categories.values()]}")
+        logger.info(f"Unified keypoints: {len(self.all_keypoint_names)}")
+        logger.info(f"Keypoint names: {self.all_keypoint_names}")
+        logger.info(f"Flip indices: {self.flip_idx}")
+        logger.info(f"Training images: {train_images}")
+        logger.info(f"Training labels: {train_labels}")
+        logger.info(f"Validation images: {val_images}")
+        logger.info(f"Validation labels: {val_labels}")
+        logger.info(f"Test images: {test_images}")
+        logger.info(f"Test labels: {test_labels}")
+        logger.info(f"Total images: {train_images + val_images + test_images}")
+        logger.info("=" * 50)
 
         # Print conversion statistics
-        print(f"\n📊 Conversion Statistics:")
-        print(f"   Total annotations processed: {self.stats['total_annotations']}")
-        print(f"   Annotations with keypoints: {self.stats['annotations_with_keypoints']}")
-        print(f"   Images processed: {self.stats['images_processed']}")
-        print(f"   Label files created: {self.stats['labels_created']}")
-        print(f"   Unified keypoint schema: {len(self.all_keypoint_names)} keypoints")
-        print(f"   Categories: {[cat['name'] for cat in self.categories.values()]}")
-        print(f"   Keypoint names: {self.all_keypoint_names}")
+        logger.info(f"\nConversion Statistics:")
+        logger.info(f"   Total annotations processed: {self.stats['total_annotations']}")
+        logger.info(f"   Annotations with keypoints: {self.stats['annotations_with_keypoints']}")
+        logger.info(f"   Images processed: {self.stats['images_processed']}")
+        logger.info(f"   Label files created: {self.stats['labels_created']}")
+        logger.info(f"   Unified keypoint schema: {len(self.all_keypoint_names)} keypoints")
+        logger.info(f"   Categories: {[cat['name'] for cat in self.categories.values()]}")
+        logger.info(f"   Keypoint names: {self.all_keypoint_names}")
 
         # Validate generated annotations
-        print("\n🔍 Validating generated annotations...")
+        logger.info("\nValidating generated annotations...")
         self._validate_generated_annotations()
 
     def _validate_generated_annotations(self):
@@ -425,7 +428,7 @@ class COCOToYOLOConverter:
         label_files = list(self.output_dir.glob("labels/**/*.txt"))
 
         if not label_files:
-            print("   No label files found to validate!")
+            logger.warning("   No label files found to validate!")
             return
 
         # Check first 10 files
@@ -461,18 +464,24 @@ class COCOToYOLOConverter:
                 issues.append(f"{file_path.name} - Read error: {e}")
 
         if issues:
-            print(f"   ⚠️  Found {len(issues)} validation issues:")
+            logger.warning(f"   Found {len(issues)} validation issues:")
             for issue in issues[:5]:  # Show first 5
-                print(f"      {issue}")
+                logger.warning(f"      {issue}")
             if len(issues) > 5:
-                print(f"      ... and {len(issues) - 5} more issues")
+                logger.warning(f"      ... and {len(issues) - 5} more issues")
         else:
-            print(
-                f"   ✅ All sampled annotations have consistent structure ({expected_kpt_values} values per annotation)")
+            logger.info(
+                f"   All sampled annotations have consistent structure ({expected_kpt_values} values per annotation)")
 
 
 def main():
     """Main function."""
+    # Setup logging for CLI usage
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
     parser = argparse.ArgumentParser(description="Convert COCO dataset to YOLO format")
     parser.add_argument("dataset_path", help="Path to the dataset directory containing COCO JSON and images")
     parser.add_argument("--split-ratio", type=float, default=0.8,
@@ -484,25 +493,25 @@ def main():
 
     # Validate inputs
     if not Path(args.dataset_path).exists():
-        print(f"❌ Error: Dataset directory not found: {args.dataset_path}")
+        logger.error(f"Dataset directory not found: {args.dataset_path}")
         return 1
 
     if not Path(args.dataset_path).is_dir():
-        print(f"❌ Error: Dataset path must be a directory: {args.dataset_path}")
+        logger.error(f"Dataset path must be a directory: {args.dataset_path}")
         return 1
 
 
     if not 0 < args.split_ratio < 1:
-        print(f"❌ Error: Split ratio must be between 0 and 1, got: {args.split_ratio}")
+        logger.error(f"Split ratio must be between 0 and 1, got: {args.split_ratio}")
         return 1
 
     if not 0 < args.test_ratio < 1:
-        print(f"❌ Error: Test ratio must be between 0 and 1, got: {args.test_ratio}")
+        logger.error(f"Test ratio must be between 0 and 1, got: {args.test_ratio}")
         return 1
 
     # Ensure train + test + val <= 1.0
     if args.split_ratio + args.test_ratio > 1.0:
-        print(f"❌ Error: Train ratio ({args.split_ratio}) + test ratio ({args.test_ratio}) cannot exceed 1.0")
+        logger.error(f"Train ratio ({args.split_ratio}) + test ratio ({args.test_ratio}) cannot exceed 1.0")
         return 1
 
     try:
@@ -510,7 +519,7 @@ def main():
         converter.convert(args.split_ratio, args.test_ratio)
         return 0
     except Exception as e:
-        print(f"❌ Error during conversion: {e}")
+        logger.error(f"Error during conversion: {e}")
         import traceback
         traceback.print_exc()
         return 1

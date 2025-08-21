@@ -8,6 +8,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.yaml_utils import load_yaml
+from utils.logger_utils import setup_logger
 import logging
 import numpy as np
 from pathlib import Path
@@ -16,6 +17,8 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from tqdm import tqdm
 import argparse
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,7 +46,6 @@ class ModelEvaluator:
         self.model = YOLO(model_path)
         self.model_name = model_name
         self.model_path = model_path
-        self.logger = logging.getLogger(f"{self.__class__.__name__}_{model_name}")
 
     def extract_detection_stats(self, result) -> DetectionStats:
         """Extract detection statistics from YOLO result"""
@@ -78,22 +80,14 @@ class RefinementEvaluator:
             original_model_path: Path to model trained only on synthetic data (Phase 2)
             refined_model_path: Path to refined model after domain adaptation (Phase 3)
         """
-        self._setup_logging()
-        self.logger = logging.getLogger(self.__class__.__name__)
 
         # Initialize models
         self.original_model = ModelEvaluator(original_model_path, "original")
         self.refined_model = ModelEvaluator(refined_model_path, "refined")
 
-        self.logger.info(f"✅ Loaded original model: {original_model_path}")
-        self.logger.info(f"✅ Loaded refined model: {refined_model_path}")
+        logger.info(f"Loaded original model: {original_model_path}")
+        logger.info(f"Loaded refined model: {refined_model_path}")
 
-    def _setup_logging(self):
-        """Setup logging configuration"""
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
 
     def evaluate_on_video(self, video_path: str, output_dir: str = "evaluation_results",
                          sample_rate: int = 1, create_videos: bool = False) -> Dict:
@@ -112,9 +106,9 @@ class RefinementEvaluator:
         output_dir = Path(output_dir)
         output_dir.mkdir(exist_ok=True)
 
-        self.logger.info(f"📊 Evaluating model performance on video: {video_path}")
+        logger.info(f"Evaluating model performance on video: {video_path}")
         if not create_videos:
-            self.logger.info("📹 Video creation disabled (handled by domain adaptation pipeline)")
+            logger.info("Video creation disabled (handled by domain adaptation pipeline)")
 
         # Process video for metrics only (no video creation by default)
         results = self._process_video_metrics_only(video_path, sample_rate, create_videos, output_dir)
@@ -125,7 +119,7 @@ class RefinementEvaluator:
         # Save detailed results
         self._save_detailed_results(results, output_dir)
 
-        self.logger.info(f"✅ Evaluation completed! Metrics saved in: {output_dir}")
+        logger.info(f"Evaluation completed! Metrics saved in: {output_dir}")
         return comparison_report
     def evaluate_iterative_refinement(self, video_path: str, output_dir: str = "evaluation_results",
                                      sample_rate: int = 1, evaluate_all_iterations: bool = False) -> Dict:
@@ -144,7 +138,7 @@ class RefinementEvaluator:
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
 
-        self.logger.info(f"🎬 Evaluating iterative refinement on video: {video_path}")
+        logger.info(f"Evaluating iterative refinement on video: {video_path}")
 
         if evaluate_all_iterations:
             return self._evaluate_all_iterations(video_path, output_path, sample_rate)
@@ -158,7 +152,7 @@ class RefinementEvaluator:
         comparison_report = self._generate_comparison_report(results, output_dir)
         self._save_detailed_results(results, output_dir)
 
-        self.logger.info(f"✅ Final model evaluation completed! Results saved in: {output_dir}")
+        logger.info(f"Final model evaluation completed! Results saved in: {output_dir}")
         return comparison_report
 
     def _evaluate_all_iterations(self, video_path: str, output_dir: Path, sample_rate: int) -> Dict:
@@ -167,15 +161,15 @@ class RefinementEvaluator:
         iteration_models = self._find_iteration_models()
 
         if not iteration_models:
-            self.logger.warning("No iteration models found, falling back to final evaluation")
+            logger.warning("No iteration models found, falling back to final evaluation")
             return self._evaluate_final_iteration(video_path, output_dir, sample_rate)
 
-        self.logger.info(f"🔍 Found {len(iteration_models)} iteration models to evaluate")
+        logger.info(f"Found {len(iteration_models)} iteration models to evaluate")
 
         # Evaluate each iteration
         iteration_results = {}
         for iteration_num, model_path in iteration_models.items():
-            self.logger.info(f"📊 Evaluating iteration {iteration_num}...")
+            logger.info(f"Evaluating iteration {iteration_num}...")
 
             # Create iteration-specific evaluator
             iter_evaluator = ModelEvaluator(model_path, f"iteration_{iteration_num}")
@@ -192,7 +186,7 @@ class RefinementEvaluator:
         # Save iteration-specific results
         self._save_progression_results(iteration_results, progression_report, output_dir)
 
-        self.logger.info(f"✅ All iterations evaluation completed! Results saved in: {output_dir}")
+        logger.info(f"All iterations evaluation completed! Results saved in: {output_dir}")
         return progression_report
 
     def _find_iteration_models(self) -> Dict[int, str]:
@@ -219,11 +213,11 @@ class RefinementEvaluator:
             # So base directory is 3 levels up
             base_dir = refined_path.parent.parent.parent
 
-        self.logger.info(f"🔍 Searching for iteration models in: {base_dir}")
+        logger.info(f"Searching for iteration models in: {base_dir}")
 
         # Find all iteration directories
         if not base_dir.exists():
-            self.logger.warning(f"Base directory not found: {base_dir}")
+            logger.warning(f"Base directory not found: {base_dir}")
             return iteration_models
 
         for iteration_dir in base_dir.glob("iteration_*"):
@@ -234,12 +228,12 @@ class RefinementEvaluator:
 
                     if model_path.exists():
                         iteration_models[iteration_num] = str(model_path)
-                        self.logger.debug(f"Found iteration {iteration_num} model: {model_path}")
+                        logger.debug(f"Found iteration {iteration_num} model: {model_path}")
                 except (ValueError, IndexError):
-                    self.logger.warning(f"Invalid iteration directory name: {iteration_dir.name}")
+                    logger.warning(f"Invalid iteration directory name: {iteration_dir.name}")
                     continue
 
-        self.logger.info(f"📊 Found {len(iteration_models)} iteration models")
+        logger.info(f"Found {len(iteration_models)} iteration models")
         return iteration_models
 
     def _process_video_for_iteration(self, video_path: str, evaluator: ModelEvaluator,
@@ -379,48 +373,48 @@ class RefinementEvaluator:
     def _print_progression_evaluation_summary(self, progression_report: Dict):
         """Print formatted summary of iterative progression evaluation"""
         print("\n" + "="*80)
-        print("📈 ITERATIVE REFINEMENT EVALUATION SUMMARY")
+        print("ITERATIVE REFINEMENT EVALUATION SUMMARY")
         print("="*80)
 
         summaries = progression_report['iteration_summaries']
         metrics = progression_report['progression_metrics']
         improvements = progression_report['overall_improvement']
 
-        print(f"🔍 Evaluated {progression_report['total_iterations']} iterations")
-        print(f"🎯 Best performing iteration: {improvements['best_iteration']}")
-        print(f"📊 Peak performance iteration: {metrics['peak_performance_iteration']}")
+        print(f"Evaluated {progression_report['total_iterations']} iterations")
+        print(f"Best performing iteration: {improvements['best_iteration']}")
+        print(f"Peak performance iteration: {metrics['peak_performance_iteration']}")
         print()
 
-        print("📈 PERFORMANCE PROGRESSION:")
+        print("PERFORMANCE PROGRESSION:")
         iterations = sorted(summaries.keys())
         for iteration in iterations:
             stats = summaries[iteration]
-            indicator = "🥇" if iteration == improvements['best_iteration'] else "📍"
+            indicator = "BEST" if iteration == improvements['best_iteration'] else "    "
             print(f"   {indicator} Iteration {iteration}:")
             print(f"      • Avg confidence: {stats['avg_confidence']:.3f}")
             print(f"      • Avg detections/frame: {stats['avg_detections']:.2f}")
             print(f"      • Detection rate: {stats['detection_rate']:.1%}")
 
         print()
-        print("📊 OVERALL TRENDS:")
-        print(f"   • Confidence trend: {metrics['confidence_trend']} 📈" if metrics['confidence_trend'] == 'improving' else f"   • Confidence trend: {metrics['confidence_trend']} 📉")
-        print(f"   • Detection trend: {metrics['detection_trend']} 📈" if metrics['detection_trend'] == 'improving' else f"   • Detection trend: {metrics['detection_trend']} 📉")
+        print("OVERALL TRENDS:")
+        print(f"   • Confidence trend: {metrics['confidence_trend']}")
+        print(f"   • Detection trend: {metrics['detection_trend']}")
 
         if len(iterations) > 1:
             conf_improvement = improvements['first_to_final_confidence']
             det_improvement = improvements['first_to_final_detections']
 
             print()
-            print("🎯 FIRST vs FINAL ITERATION:")
+            print("FIRST vs FINAL ITERATION:")
             print(f"   • Confidence improvement: {conf_improvement:+.3f}")
             print(f"   • Detection improvement: {det_improvement:+.2f}")
 
             if conf_improvement > 0.02:
-                print("   ✅ Significant improvement achieved through iterations!")
+                print("   Significant improvement achieved through iterations!")
             elif conf_improvement > 0.005:
-                print("   🟡 Moderate improvement through iterations")
+                print("   Moderate improvement through iterations")
             else:
-                print("   🔴 Limited improvement - consider adjusting iteration parameters")
+                print("   Limited improvement - consider adjusting iteration parameters")
 
         print("="*80)
 
@@ -437,13 +431,13 @@ class RefinementEvaluator:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        self.logger.info(f"Video properties: {width}x{height}, {fps}fps, {total_frames} frames")
+        logger.info(f"Video properties: {width}x{height}, {fps}fps, {total_frames} frames")
 
         # Create video writers only if requested
         video_writers = None
         if create_videos:
             video_writers = self._create_video_writers(output_dir, fps, width, height)
-            self.logger.info("📹 Creating annotated videos...")
+            self.logger.info("Creating annotated videos...")
 
         # Process frames
         frame_analyses = []
@@ -475,7 +469,7 @@ class RefinementEvaluator:
             for writer in video_writers.values():
                 writer.release()
 
-        self.logger.info(f"Processed {processed_count} frames out of {total_frames}")
+        logger.info(f"Processed {processed_count} frames out of {total_frames}")
 
         return {
             'frame_analyses': frame_analyses,
@@ -502,7 +496,7 @@ class RefinementEvaluator:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        self.logger.info(f"Video properties: {width}x{height}, {fps}fps, {total_frames} frames")
+        logger.info(f"Video properties: {width}x{height}, {fps}fps, {total_frames} frames")
 
         # Create video writers
         video_writers = self._create_video_writers(output_dir, fps, width, height)
@@ -535,7 +529,7 @@ class RefinementEvaluator:
         for writer in video_writers.values():
             writer.release()
 
-        self.logger.info(f"Processed {processed_count} frames out of {total_frames}")
+        logger.info(f"Processed {processed_count} frames out of {total_frames}")
 
         return {
             'frame_analyses': frame_analyses,
@@ -733,7 +727,7 @@ class RefinementEvaluator:
     def _print_comparison_summary(self, report: Dict):
         """Print a formatted comparison summary"""
         print("\n" + "="*70)
-        print("🔍 MODEL COMPARISON SUMMARY")
+        print("MODEL COMPARISON SUMMARY")
         print("="*70)
 
         summary = report['summary']
@@ -742,12 +736,12 @@ class RefinementEvaluator:
         improvements = summary['improvements']
         assessment = summary['evaluation_assessment']
 
-        print(f"📊 Total frames analyzed: {summary['video_info']['processed_frames']}")
-        print(f"📹 Video resolution: {summary['video_info']['resolution']}")
-        print(f"⏱️  Sample rate: every {summary['video_info']['sample_rate']} frame(s)")
+        print(f"Total frames analyzed: {summary['video_info']['processed_frames']}")
+        print(f"Video resolution: {summary['video_info']['resolution']}")
+        print(f"Sample rate: every {summary['video_info']['sample_rate']} frame(s)")
         print()
 
-        print("📈 DETECTION PERFORMANCE:")
+        print("DETECTION PERFORMANCE:")
         print(f"  Original model (synthetic only):")
         print(f"    • Avg detections/frame: {original['avg_detections']:.2f}")
         print(f"    • Avg confidence: {original['avg_confidence']:.3f}")
@@ -762,7 +756,7 @@ class RefinementEvaluator:
         print(f"    • High-conf detections/frame: {refined['avg_high_conf']:.2f}")
         print()
 
-        print("📊 IMPROVEMENTS:")
+        print("IMPROVEMENTS:")
         print(f"  • Detection count: {improvements['avg_detections_improvement']:+.2f}")
         print(f"  • Confidence: {improvements['avg_confidence_improvement']:+.3f}")
         print(f"  • High-conf detections: {improvements['high_conf_detection_improvement']:+.2f}")
@@ -771,11 +765,11 @@ class RefinementEvaluator:
         # Overall assessment
         overall = assessment['overall_improvement']
         if overall == 'significant':
-            print("✅ Significant improvement achieved!")
+            print("Significant improvement achieved!")
         elif overall == 'moderate':
-            print("🟡 Moderate improvement achieved")
+            print("Moderate improvement achieved")
         else:
-            print("🔴 Limited improvement observed")
+            print("Limited improvement observed")
 
         print("="*70)
 
@@ -787,8 +781,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Load configuration
+        # Load configuration and setup logging
         config = load_yaml(args.config)
+        setup_logger(__name__, config)
 
         # Extract paths from config
         original_model_path = config['paths']['model_path']
@@ -806,7 +801,7 @@ def main():
                 missing_paths.append(f"{name}: {path}")
 
         if missing_paths:
-            print("❌ Missing required files:")
+            print("Missing required files:")
             for missing in missing_paths:
                 print(f"   • {missing}")
             sys.exit(1)
@@ -820,17 +815,17 @@ def main():
             create_videos=True  # Enable video creation when run manually
         )
 
-        print(f"\n🎯 Evaluation complete! Check {output_dir} for:")
+        print(f"\nEvaluation complete! Check {output_dir} for:")
         print(f"   • results_synthetic_only.mp4 - Original model predictions")
         print(f"   • results_refined.mp4 - Refined model predictions")
         print(f"   • comparison_report.json - Detailed comparison metrics")
         print(f"   • detailed_frame_analysis.json - Frame-by-frame analysis")
 
     except FileNotFoundError as e:
-        print(f"❌ Configuration or input file not found: {e}")
+        print(f"Configuration or input file not found: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Evaluation failed: {e}")
+        print(f"Evaluation failed: {e}")
         sys.exit(1)
 
 

@@ -1,7 +1,10 @@
 import json
+import logging
 import bpy
 from pathlib import Path
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 def merge_keypoints_into_coco(output_dir: Path, frame_annotations: List[Dict], curr_frame: int):
@@ -75,7 +78,7 @@ def update_coco_categories(output_dir: Path, tool_manager) -> None:
         with open(coco_file, 'w') as f:
             json.dump(coco_data, f, indent=2)
 
-        print("Updated COCO categories with keypoint and skeleton information")
+        logger.info("Updated COCO categories with keypoint and skeleton information")
 
     except Exception as e:
-        print(f"Error updating COCO categories: {e}")
+        logger.error(f"Error updating COCO categories: {e}")

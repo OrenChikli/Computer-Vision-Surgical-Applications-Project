@@ -1,8 +1,11 @@
 import blenderproc as bproc
 
 import json
+import logging
 import random
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def setup_camera(camera_params_file: str) -> bool:
@@ -13,7 +16,7 @@ def setup_camera(camera_params_file: str) -> bool:
 
         required_params = ["fx", "fy", "cx", "cy", "width", "height"]
         if not all(param in camera_params for param in required_params):
-            print(f"Error: Camera params missing required fields: {required_params}")
+            logger.error(f"Camera params missing required fields: {required_params}")
             return False
 
         K = np.array([
@@ -24,7 +27,7 @@ def setup_camera(camera_params_file: str) -> bool:
         bproc.camera.set_intrinsics_from_K_matrix(K, camera_params["width"], camera_params["height"])
         return True
     except Exception as e:
-        print(f"Error setting camera parameters: {e}")
+        logger.error(f"Error setting camera parameters: {e}")
         return False
 
 

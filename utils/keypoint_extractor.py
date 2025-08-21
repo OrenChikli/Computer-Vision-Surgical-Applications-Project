@@ -1,8 +1,11 @@
 import bpy
 import bpy_extras
+import logging
 import numpy as np
 from mathutils import Vector
 from typing import Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class KeypointExtractor:
@@ -33,7 +36,7 @@ class KeypointExtractor:
             return float(x_pixel), float(y_pixel), is_visible
 
         except Exception as e:
-            print(f"Warning: Error in coordinate conversion: {e}")
+            logger.warning(f"Error in coordinate conversion: {e}")
             return 0.0, 0.0, False
 
     def extract_tool_keypoints(self, obj) -> Optional[Dict]:

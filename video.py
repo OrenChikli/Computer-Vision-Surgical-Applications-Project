@@ -11,6 +11,8 @@ from ultralytics import YOLO
 from typing import Optional, Callable, Dict, Any
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 def get_default_device():
     """
@@ -239,7 +241,7 @@ def main():
 
     # Progress callback for standalone use
     def progress_callback(frame_idx, total_frames, progress_pct):
-        print(f"Processed {frame_idx}/{total_frames} frames ({progress_pct:.1f}%)")
+        logger.info(f"Processed {frame_idx}/{total_frames} frames ({progress_pct:.1f}%)")
 
     # Frame saving callback
     def frame_callback(frame_idx, results):
@@ -257,15 +259,15 @@ def main():
             progress_callback=progress_callback if not args.display else None
         )
 
-        print(f"\n✅ Video annotation completed!")
-        print(f"   📊 Processed {stats['processed_frames']} frames")
-        print(f"   🎯 Total detections: {stats['total_detections']}")
-        print(f"   📈 Avg detections per frame: {stats['avg_detections_per_frame']:.2f}")
+        logger.info("Video annotation completed!")
+        logger.info(f"   Processed {stats['processed_frames']} frames")
+        logger.info(f"   Total detections: {stats['total_detections']}")
+        logger.info(f"   Avg detections per frame: {stats['avg_detections_per_frame']:.2f}")
         if args.save_video:
-            print(f"   💾 Saved to: {output_path}")
+            logger.info(f"   Saved to: {output_path}")
 
     except Exception as e:
-        print(f"❌ Error during video annotation: {e}")
+        logger.error(f"Error during video annotation: {e}")
         raise
 
 
