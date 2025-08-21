@@ -167,7 +167,7 @@ tracking:
 
 # Training parameters for domain adaptation
 training:
-  epochs: 10                      # Number of training epochs
+  epochs: 50                      # Number of training epochs
   batch_size: 16                  # Batch size for training
   imgsz: 640                      # Image size for training
   device: "auto"                  # Device selection (auto/cpu/cuda)
