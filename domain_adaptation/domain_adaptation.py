@@ -1,6 +1,24 @@
 """
-Domain Adaptation with Video Annotation Integration
-Saves annotated videos at each step to visualize improvements
+Domain Adaptation Pipeline for Surgical Instrument Pose Estimation
+
+This module implements unsupervised domain adaptation using iterative refinement
+and pseudo-labeling to adapt synthetic-trained models to real surgical data.
+
+Key Features:
+- Extracts high-confidence pseudo-labels from real surgical videos
+- Combines synthetic and pseudo-labeled real data for model refinement  
+- Iterative improvement through multiple adaptation cycles
+- Memory-efficient processing for large video datasets
+- Comprehensive evaluation and progress tracking
+
+Typical Workflow:
+1. Load synthetic-trained YOLO model
+2. Extract pseudo-labels from real surgical video using tracking
+3. Filter labels by confidence and temporal consistency
+4. Combine with original synthetic dataset
+5. Retrain model on combined dataset
+6. Repeat for multiple iterations
+7. Evaluate improvement through annotated video comparison
 """
 
 import cv2
@@ -43,7 +61,22 @@ except ImportError as e:
 
 @dataclass
 class PseudoLabel:
-    """Data class for pseudo-label information - MEMORY FIXED"""
+    """
+    Memory-efficient data structure for pseudo-labeled detections.
+    
+    Stores minimal information needed for training while avoiding
+    memory issues with large video datasets. Frame data is referenced
+    by path rather than stored directly.
+    
+    Attributes:
+        frame_id: Frame number within video (0-based)
+        video_path: Path to source video file
+        box: Bounding box coordinates [x1, y1, x2, y2] 
+        confidence: Model confidence score (0.0-1.0)
+        class_id: Detected object class ID
+        keypoints: Optional keypoint coordinates and confidence
+        frame_shape: Original frame dimensions (height, width)
+    """
     frame_id: int
     video_path: str  # Store video path instead of full frame
     box: np.ndarray
@@ -112,7 +145,9 @@ class PseudoLabelExtractor:
 
     def _run_tracking(self, video_path: str):
         """Run tracking on video with configured parameters"""
-        # Use lower confidence for tracking to capture more detections initially
+        # Two-stage confidence filtering strategy:
+        # 1. Use lower confidence for tracking to capture more potential detections
+        # 2. Apply higher confidence threshold later for final pseudo-label selection
         tracking_conf = min(0.3, self.config.get('pseudo_labeling.confidence_threshold'))
         
         tracking_params = {
@@ -147,10 +182,12 @@ class PseudoLabelExtractor:
 
             frame_count += 1
 
+            # Apply memory cleanup every 100 frames to prevent GPU memory accumulation
+            # Essential for processing long surgical videos without memory errors
             if frame_count % 100 == 0:
-                gc.collect()
+                gc.collect()  # Python garbage collection
                 if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                    torch.cuda.empty_cache()  # Clear GPU memory cache
 
         return track_history
 

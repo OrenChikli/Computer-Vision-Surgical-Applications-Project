@@ -128,16 +128,16 @@ keypoint_not_available_value: 0
 # Input paths for domain adaptation
 paths:
   # Path to your trained Phase 2 model (from YOLO training results)
-  model_path:  "D:/Vision_project_data/yolo_runs/train11/weights/best.pt" #"../training_results/surgical_pose_v1/weights/best.pt"
+  model_path:  "../training_results/surgical_pose_v1/weights/best.pt"
 
   # Path to your Phase 1 synthetic dataset (YOLO format)
-  synthetic_data_path: "D:/Vision_project_data/datasets/dataset_1920_new/yolo_dataset" #"../datasets/yolo_dataset"
+  synthetic_data_path: "../datasets/yolo_dataset"
 
   # Path to real surgical video for domain adaptation
-  real_video_path: "C:/Users/fchik/OneDrive/Study/Technion/2025b/vision/Project/data/vids_tune/4_2_24_B_2.mp4" #surg_1.mp4" #"../data/real_videos/surgical_video.mp4"
+  real_video_path: "../data/real_videos/surgical_video.mp4"
 
   # Output directory for domain adaptation results
-  output_dir: "D:/Vision_project_data/domain_adaptation/dataset_1920_new_final_test" #"../output/domain_adaptation_results"
+  output_dir: "../output/domain_adaptation_results"
 
 
 # Video annotation settings

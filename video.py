@@ -16,14 +16,36 @@ logger = logging.getLogger(__name__)
 
 def get_default_device():
     """
-    Returns the default torch device: GPU/MPS if available, else CPU.
+    Automatically detect the best available PyTorch device for inference.
+    
+    Prioritizes CUDA GPU > Apple MPS > CPU for optimal performance.
+    Essential for handling large YOLO models efficiently.
+    
+    Returns:
+        str: Device string ('cuda:0', 'mps', or 'cpu')
     """
     return 'cuda:0' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
 
 class VideoAnnotator:
     """
-    Reusable video annotation class for YOLO models
+    Reusable video annotation class for YOLO pose estimation models.
+    
+    Provides a clean interface for processing surgical videos with YOLO models,
+    supporting both interactive display and batch processing modes.
+    Designed for integration with domain adaptation pipelines.
+    
+    Features:
+        - Automatic device detection (GPU/CPU)
+        - Progress tracking and callbacks
+        - Memory-efficient video processing
+        - Interactive playback controls (space to pause, 'q' to quit)
+        - Comprehensive statistics collection
+    
+    Example:
+        >>> annotator = VideoAnnotator('model.pt')
+        >>> stats = annotator.annotate_video('input.mp4', 'output.mp4')
+        >>> print(f"Processed {stats['processed_frames']} frames")
     """
 
     def __init__(self, model_path: str, device: Optional[str] = None, logger: Optional[logging.Logger] = None):
@@ -144,19 +166,20 @@ class VideoAnnotator:
                 else:
                     annotated = last_frame
 
-                # Display if requested
+                # Display if requested - provides interactive controls for review
                 if display_video and window_name:
                     cv2.imshow(window_name, annotated)
 
+                    # Handle keyboard input for playback control
                     key = cv2.waitKey(1) & 0xFF
-                    if key == ord('q'):
+                    if key == ord('q'):  # 'q' key to quit
                         self.logger.info("User quit video annotation.")
                         break
-                    elif key == 32:  # Space bar
+                    elif key == 32:  # Space bar to pause/resume
                         play = not play
                         self.logger.info("Paused" if not play else "Resumed")
 
-                # For non-interactive mode, just process all frames
+                # For batch processing mode, continue without user interaction
                 elif not display_video:
                     continue
 
@@ -176,8 +199,25 @@ class VideoAnnotator:
 
     def annotate_video_simple(self, video_path: str, output_path: str, conf_thresh: float = 0.5) -> Dict[str, Any]:
         """
-        Simple video annotation without display or callbacks
-        Perfect for batch processing in domain adaptation
+        Simple video annotation optimized for batch processing.
+        
+        Processes video without display or interactive features, making it
+        perfect for domain adaptation pipelines where you need to annotate
+        multiple videos automatically.
+        
+        Args:
+            video_path: Path to input video file
+            output_path: Path where annotated video will be saved
+            conf_thresh: Confidence threshold for detections (0.0-1.0)
+            
+        Returns:
+            Dictionary containing processing statistics:
+            - total_frames: Total frames in video
+            - processed_frames: Successfully processed frames
+            - total_detections: Sum of all detections
+            - avg_detections_per_frame: Average detections per frame
+            - fps: Original video frame rate
+            - resolution: (width, height) tuple
         """
         return self.annotate_video(
             video_path=video_path,
@@ -194,7 +234,28 @@ def annotate_video_standalone(model_path: str,
                             conf_thresh: float = 0.5,
                             display: bool = False) -> Dict[str, Any]:
     """
-    Standalone function for video annotation (for easy importing)
+    Standalone function for video annotation without class instantiation.
+    
+    Convenient wrapper for one-off video processing tasks.
+    Creates VideoAnnotator instance internally and handles cleanup automatically.
+    
+    Args:
+        model_path: Path to YOLO .pt model file
+        video_path: Path to input video file  
+        output_path: Path for annotated output video
+        conf_thresh: Detection confidence threshold (default: 0.5)
+        display: Whether to show interactive video player (default: False)
+        
+    Returns:
+        Dictionary with processing statistics and performance metrics
+        
+    Example:
+        >>> stats = annotate_video_standalone(
+        ...     'yolo11n-pose.pt', 
+        ...     'surgery.mp4', 
+        ...     'annotated_surgery.mp4',
+        ...     conf_thresh=0.8
+        ... )
     """
     annotator = VideoAnnotator(model_path)
     return annotator.annotate_video(
@@ -207,7 +268,15 @@ def annotate_video_standalone(model_path: str,
 
 
 def parse_args():
-    """Command line argument parsing for standalone use"""
+    """
+    Parse command line arguments for standalone script execution.
+    
+    Provides comprehensive CLI interface for video annotation with all
+    major options accessible from command line.
+    
+    Returns:
+        argparse.Namespace: Parsed command line arguments
+    """
     parser = argparse.ArgumentParser(description="Run a YOLO model on a video and display the detections live.")
     parser.add_argument("--model_path", required=True, help="Path to the YOLO .pt model file.")
     parser.add_argument("--video_path", required=True, help="Path to the input video file.")
@@ -222,7 +291,16 @@ def parse_args():
 
 
 def main():
-    """Main function for standalone script usage"""
+    """
+    Main entry point for standalone video annotation script.
+    
+    Handles command line argument parsing, creates VideoAnnotator instance,
+    processes video with progress tracking, and reports final statistics.
+    
+    Exit codes:
+        0: Success
+        1: Error during processing
+    """
     args = parse_args()
 
     # Setup logging

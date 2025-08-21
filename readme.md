@@ -80,6 +80,7 @@ data/
 
 **💡 Note**: The `tool_skeletons.json` file should be created manually before starting annotation. See the annotation guide for details.
 
+
 ### 3. Configuration
 
 Modify the configuration file:

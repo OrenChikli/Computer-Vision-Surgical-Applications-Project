@@ -32,15 +32,28 @@ logger = logging.getLogger(__name__)
 
 
 def set_seeds(seed: int = 42):
-    """Set all random seeds for reproducibility."""
+    """
+    Set all random seeds for reproducible synthetic data generation.
+    
+    This function ensures that BlenderProc, NumPy, and Python random generators
+    produce consistent results across runs, which is essential for debugging
+    and comparing different configuration settings.
+    
+    Args:
+        seed: Random seed value to use across all generators
+        
+    Note:
+        BlenderProc frame setting may fail in headless mode, which is safely ignored.
+    """
     random.seed(seed)
     np.random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
 
     try:
+        import bpy
         bpy.context.scene.frame_set(seed)
-    except:
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.warning(f"Could not set Blender frame seed: {e}")
 
     logger.info(f"All seeds set to: {seed}")
 
@@ -48,7 +61,32 @@ def set_seeds(seed: int = 42):
 def generate_workspace_images(config: dict, tool_manager: ToolManager, hdri_files: list,
                               output_dir: Path, frame_idx: int, workspace_idx: int,
                               stats_tracker: Optional[StatisticsTracker] = None) -> int:
-    """Generate images for a single workspace setup."""
+    """
+    Generate synthetic images for a single surgical workspace setup.
+    
+    This function creates a complete workspace environment by:
+    1. Setting up realistic surgical lighting
+    2. Placing occlusion objects (medical gloves) 
+    3. Configuring HDRI background environments
+    4. Sampling multiple camera poses with optional motion blur
+    5. Rendering images with COCO keypoint annotations
+    
+    Args:
+        config: Configuration dictionary containing rendering and workspace parameters
+        tool_manager: Manager for surgical tool placement and keypoint extraction
+        hdri_files: List of HDRI file paths for realistic backgrounds
+        output_dir: Directory to save generated images and annotations
+        frame_idx: Starting frame index for consistent numbering
+        workspace_idx: Current workspace setup number for logging
+        stats_tracker: Optional statistics collector for dataset analysis
+        
+    Returns:
+        Number of camera poses/images successfully generated
+        
+    Note:
+        Motion blur is applied probabilistically based on config['motion_blur_prob']
+        and simulates camera movement during surgical procedures.
+    """
     logger.info(f"Generating workspace setup {workspace_idx}")
 
     # Clear previous camera poses
@@ -77,13 +115,18 @@ def generate_workspace_images(config: dict, tool_manager: ToolManager, hdri_file
         # Update workspace counter in summary stats
         stats_tracker.summary_stats['workspace_setups'] = workspace_idx
 
-    # Motion blur setup
+    # Motion blur setup - simulates camera movement during surgical procedures
+    # This adds realism by mimicking hand tremor or intentional camera movement
     use_motion_blur = random.random() < config['motion_blur_prob']
 
     if use_motion_blur:
         logger.info(f"Using motion blur for workspace {workspace_idx}")
+        # Sample blur length from configured range (controls blur intensity)
         blur_length = random.uniform(*config['motion_blur_length_range'])
         bproc.renderer.enable_motion_blur(motion_blur_length=blur_length)
+        
+        # Generate random 3D offset for camera movement direction
+        # Small values prevent unrealistic camera jumps
         motion_offset = np.random.uniform(
             config['motion_offset_range']['min'],
             config['motion_offset_range']['max']
@@ -92,17 +135,23 @@ def generate_workspace_images(config: dict, tool_manager: ToolManager, hdri_file
         import bpy
         bpy.context.scene.render.use_motion_blur = False
 
-    # Generate camera poses
+    # Generate camera poses - sample multiple viewpoints per workspace setup
     start_frame = frame_idx
     poses_generated = 0
 
     for pose_idx in range(config['poses_per_workspace']):
         if not use_motion_blur or pose_idx == 0:
+            # Sample new camera pose using workspace constraints
+            # Ensures realistic surgical viewing angles and distances
             cam2world_matrix = sample_camera_pose(config)
         else:
-            # Apply motion blur offset
+            # Apply incremental motion blur offset for smooth camera movement
+            # Creates realistic motion trail across multiple poses
             current_location = np.array(cam2world_matrix[:3, 3])
-            new_location = current_location + motion_offset * (pose_idx / config['poses_per_workspace'])
+            # Linearly interpolate motion across poses for smooth movement
+            motion_factor = pose_idx / config['poses_per_workspace']
+            new_location = current_location + motion_offset * motion_factor
+            # Preserve camera orientation while updating position
             cam2world_matrix = bproc.math.build_transformation_mat(new_location, cam2world_matrix[:3, :3])
 
         bproc.camera.add_camera_pose(cam2world_matrix)
